@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卡牌图标预览 - 九层塔</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: radial-gradient(ellipse at top, #1a0a2e 0%, #0a0515 60%, #050208 100%); color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+h1 { text-align: center; font-size: 28px; margin-bottom: 6px; color: #ffcc22; text-shadow: 0 0 20px rgba(255,204,34,0.4); }
+.subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 28px; }
+.section { margin-bottom: 36px; }
+.section-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid rgba(255,204,34,0.2); display: flex; align-items: center; gap: 8px; }
+.section-title .badge { font-size: 12px; padding: 2px 10px; border-radius: 12px; background: rgba(255,204,34,0.15); color: #ffcc22; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+
+/* 小丑牌卡片 */
+.joker-card { border-radius: 10px; padding: 10px 8px; text-align: center; border: 2px solid; transition: transform 0.2s; cursor: default; }
+.joker-card:hover { transform: translateY(-4px) scale(1.05); }
+.joker-card.rarity-common { background: linear-gradient(145deg, #1a1a3e, #2d2d4e); border-color: #888; }
+.joker-card.rarity-rare { background: linear-gradient(145deg, #0a1a3e, #1a2d5e); border-color: #44aaff; }
+.joker-card.rarity-epic { background: linear-gradient(145deg, #2a0a3e, #3a1a5e); border-color: #cc44ff; }
+.joker-card.rarity-legend { background: linear-gradient(145deg, #3a2a0a, #5e4a1a); border-color: #ff4444; }
+.joker-card.temporary { border-style: dashed; }
+.joker-card .icon { font-size: 36px; line-height: 1; margin-bottom: 6px; }
+.joker-card .name { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+.joker-card .rarity-tag { font-size: 9px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase; }
+.rarity-common .rarity-tag { color: #aaa; }
+.rarity-rare .rarity-tag { color: #44aaff; }
+.rarity-epic .rarity-tag { color: #cc44ff; }
+.rarity-legend .rarity-tag { color: #ff6644; }
+.joker-card .desc { font-size: 10px; color: #ccc; line-height: 1.3; margin-bottom: 4px; }
+.joker-card .cost { font-size: 14px; font-weight: 900; color: #ffcc22; }
+.joker-card .type-tag { font-size: 8px; padding: 1px 6px; border-radius: 8px; display: inline-block; margin-top: 2px; }
+.type-chips { background: rgba(0,217,126,0.2); color: #00d97e; }
+.type-mult { background: rgba(255,51,102,0.2); color: #ff3366; }
+.type-xmult { background: rgba(255,204,34,0.2); color: #ffcc22; }
+.type-utility { background: rgba(100,100,255,0.2); color: #8888ff; }
+.type-temp { background: rgba(255,170,0,0.2); color: #ffaa00; }
+
+/* 消耗品卡片 */
+.cons-card { border-radius: 10px; padding: 12px 8px; text-align: center; border: 2px solid; transition: transform 0.2s; }
+.cons-card:hover { transform: translateY(-4px) scale(1.05); }
+.cons-card.tarot { background: linear-gradient(145deg, #2a0a3e, #4a1a6e); border-color: #aa44ff; }
+.cons-card.planet { background: linear-gradient(145deg, #0a1a3e, #1a3a6e); border-color: #44aaff; }
+.cons-card .icon { font-size: 36px; line-height: 1; margin-bottom: 6px; }
+.cons-card .name { font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+.cons-card .desc { font-size: 10px; color: #ccc; line-height: 1.3; margin-bottom: 4px; }
+.cons-card .cost { font-size: 14px; font-weight: 900; color: #ffcc22; }
+.cons-card .type-label { font-size: 9px; font-weight: 700; margin-bottom: 4px; }
+.cons-card.tarot .type-label { color: #cc66ff; }
+.cons-card.planet .type-label { color: #66ccff; }
+
+/* 统计 */
+.stats { display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.stat-box { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 8px 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+.stat-box .num { font-size: 24px; font-weight: 900; color: #ffcc22; }
+.stat-box .label { font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>🃏 卡牌图标预览</h1>
+<p class="subtitle">九层塔 - 扑克肉鸽 · 全部卡牌图标一览</p>
+
+<div class="stats" id="stats"></div>
+
+<div id="preview-container"></div>
+
+<script>
+const SUITS = ['♠','♥','♦','♣'];
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const FACE_CARDS = ['J','Q','K'];
+const RANK_VALUES = {'A':11,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':10,'Q':10,'K':10};
+const RANK_ORDER = {'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13};
+
+const JOKERS = [
+  // 底分 (8)
+  { id:'banner', name:'旗帜', icon:'🚩', rarity:'common', cost:3, type:'chips', temp:false, desc:'每剩1次换牌 +40底分' },
+  { id:'blue_joker', name:'蓝色小丑', icon:'🟦', rarity:'common', cost:3, type:'chips', temp:false, desc:'牌堆每剩1张 +3底分' },
+  { id:'square', name:'方形小丑', icon:'⬜', rarity:'common', cost:3, type:'chips', temp:false, desc:'正好打4张 永久+15底分' },
+  { id:'scary_face', name:'恐怖人头', icon:'😱', rarity:'common', cost:3, type:'chips', temp:false, desc:'每张计分人头牌 +35底分' },
+  { id:'castle', name:'城堡', icon:'🏰', rarity:'rare', cost:5, type:'chips', temp:false, desc:'弃掉指定花色1张 永久+10底分' },
+  { id:'stone', name:'石头小丑', icon:'🪨', rarity:'rare', cost:5, type:'chips', temp:false, desc:'无人头牌时 每张+45底分' },
+  { id:'short_ladder', name:'短梯', icon:'🪜', rarity:'rare', cost:5, type:'chips', temp:false, desc:'点数都≤8时 每张+40底分' },
+  { id:'mountaineer', name:'登山客', icon:'🧗', rarity:'epic', cost:7, type:'chips', temp:false, desc:'每张计分牌永久+8牌面分' },
+
+  // 加倍率 (15)
+  { id:'joker', name:'小丑', icon:'🃏', rarity:'common', cost:3, type:'mult', temp:false, desc:'倍率+5' },
+  { id:'misprint', name:'印错小丑', icon:'❓', rarity:'common', cost:3, type:'mult', temp:false, desc:'随机+0~20倍率' },
+  { id:'abstract', name:'抽象小丑', icon:'🎨', rarity:'common', cost:3, type:'mult', temp:false, desc:'每拥有1张小丑 +3倍率' },
+  { id:'half', name:'半张小丑', icon:'🌗', rarity:'common', cost:3, type:'mult', temp:false, desc:'打出≤3张 +18倍率' },
+  { id:'smiley', name:'微笑表情', icon:'😊', rarity:'common', cost:3, type:'mult', temp:false, desc:'每张计分人头牌 +5倍率' },
+  { id:'spade_joker', name:'黑桃小丑', icon:'♠️', rarity:'common', cost:3, type:'mult', temp:false, desc:'每张黑桃 +5倍率' },
+  { id:'heart_joker', name:'红桃小丑', icon:'♥️', rarity:'common', cost:3, type:'mult', temp:false, desc:'每张红桃 +5倍率' },
+  { id:'club_joker', name:'梅花小丑', icon:'♣️', rarity:'common', cost:3, type:'mult', temp:false, desc:'每张梅花 +5倍率' },
+  { id:'diamond_joker', name:'方片小丑', icon:'♦️', rarity:'common', cost:3, type:'mult', temp:false, desc:'每张方片 +5倍率' },
+  { id:'even', name:'偶数小丑', icon:'✌️', rarity:'rare', cost:5, type:'mult', temp:false, desc:'2/4/6/8/10每张+5倍率' },
+  { id:'green', name:'绿色小丑', icon:'💚', rarity:'rare', cost:5, type:'mult', temp:false, desc:'出牌+3倍率 弃牌-3倍率' },
+  { id:'spare_trousers', name:'备用裤子', icon:'👖', rarity:'rare', cost:5, type:'mult', temp:false, desc:'打出两对 永久+3倍率' },
+  { id:'supernova', name:'超新星', icon:'🌟', rarity:'epic', cost:7, type:'mult', temp:false, desc:'同牌型打越多 倍率+记录×3' },
+  { id:'fibonacci', name:'斐波那契', icon:'🌀', rarity:'epic', cost:7, type:'mult', temp:false, desc:'A/2/3/5/8每张+8倍率' },
+  { id:'burnt', name:'烧焦小丑', icon:'🔥', rarity:'epic', cost:7, type:'mult', temp:false, desc:'首次弃牌组牌型 该牌型永久+3倍率' },
+
+  // 乘倍率 (9)
+  { id:'photo', name:'照片', icon:'📸', rarity:'rare', cost:5, type:'xmult', temp:false, desc:'有头牌时 第一张头牌+面值底分' },
+  { id:'ghost', name:'重影', icon:'👻', rarity:'rare', cost:5, type:'xmult', temp:false, desc:'有梅花和其他花色 倍率×2' },
+  { id:'blackboard', name:'黑板', icon:'🖤', rarity:'rare', cost:5, type:'xmult', temp:false, desc:'无红桃方片 倍率×2.5' },
+  { id:'cheat', name:'老千小丑', icon:'🎲', rarity:'epic', cost:7, type:'xmult', temp:false, desc:'重复打出同牌型 倍率×3' },
+  { id:'flower_pot', name:'花盆', icon:'🪴', rarity:'epic', cost:7, type:'xmult', temp:false, desc:'含四种花色 底分+50 倍率×3' },
+  { id:'ancient', name:'古老小丑', icon:'🗿', rarity:'legend', cost:10, type:'xmult', temp:false, desc:'随机花色该花色计分×1.5' },
+  { id:'order', name:'秩序', icon:'📏', rarity:'legend', cost:10, type:'xmult', temp:false, desc:'顺子/同花顺/皇家同花顺×3' },
+  { id:'baron', name:'男爵', icon:'🎩', rarity:'legend', cost:10, type:'xmult', temp:false, desc:'手中每张K 倍率×1.5' },
+  { id:'quintet', name:'五重奏', icon:'🎵', rarity:'legend', cost:10, type:'xmult', temp:false, desc:'五条倍率×5' },
+
+  // 功能 (10)
+  { id:'splash', name:'飞溅', icon:'💦', rarity:'common', cost:3, type:'utility', temp:false, desc:'所有打出的牌都计分' },
+  { id:'fuzzy', name:'模糊', icon:'🌫️', rarity:'rare', cost:5, type:'utility', temp:false, desc:'红桃方片同花 黑桃梅花同花' },
+  { id:'vision', name:'幻视', icon:'👁️', rarity:'rare', cost:5, type:'utility', temp:false, desc:'所有计分牌视为人头牌' },
+  { id:'four_fingers', name:'四指', icon:'✋', rarity:'rare', cost:5, type:'utility', temp:false, desc:'顺子同花只需4张' },
+  { id:'shortcut', name:'捷径', icon:'⚡', rarity:'rare', cost:5, type:'utility', temp:false, desc:'顺子允许跳1个点数' },
+  { id:'hanger', name:'吊牌', icon:'🪝', rarity:'epic', cost:7, type:'utility', temp:false, desc:'第一张计分牌额外触发2次' },
+  { id:'joy_sorrow', name:'喜与悲', icon:'😅', rarity:'epic', cost:7, type:'utility', temp:false, desc:'人头牌计分效果额外触发1次' },
+  { id:'blueprint', name:'蓝图', icon:'📐', rarity:'legend', cost:10, type:'utility', temp:false, desc:'复制右侧第1张小丑效果' },
+  { id:'brainstorm', name:'头脑风暴', icon:'🧠', rarity:'legend', cost:10, type:'utility', temp:false, desc:'复制最左侧小丑效果' },
+  { id:'neighbor', name:'邻座', icon:'🪑', rarity:'legend', cost:10, type:'utility', temp:false, desc:'四条+第5张差1 变五条' },
+
+  // 临时 (6)
+  { id:'tip', name:'小费', icon:'💵', rarity:'common', cost:3, type:'temp', temp:true, desc:'本次出牌+500底分' },
+  { id:'applause', name:'掌声', icon:'👏', rarity:'common', cost:3, type:'temp', temp:true, desc:'本次出牌+10倍率' },
+  { id:'re_ticket', name:'补票', icon:'🎫', rarity:'rare', cost:5, type:'temp', temp:true, desc:'换牌+1 出牌+1' },
+  { id:'elevator', name:'升降机', icon:'🛗', rarity:'legend', cost:10, type:'temp', temp:true, desc:'选1张打出牌变同花色相邻点数' },
+  { id:'double_coupon', name:'加倍券', icon:'🎟️', rarity:'legend', cost:10, type:'temp', temp:true, desc:'本次出牌最终分数×2' },
+  { id:'disguise', name:'变装券', icon:'🎭', rarity:'legend', cost:10, type:'temp', temp:true, desc:'指定1张打出牌变同花色任意点数' },
+];
+
+const TAROTS = [
+  { id:'the_fool', name:'愚者', icon:'🃏', cost:3, desc:'选1张手牌变成随机牌' },
+  { id:'the_magician', name:'魔术师', icon:'🎩', cost:3, desc:'选2张手牌变成A' },
+  { id:'the_emperor', name:'皇帝', icon:'👑', cost:3, desc:'选2张手牌变成K' },
+  { id:'the_priestess', name:'女祭司', icon:'🔮', cost:3, desc:'选2张手牌变成Q' },
+  { id:'death', name:'死神', icon:'💀', cost:3, desc:'选2张手牌,第1张变成第2张的点数' },
+  { id:'the_tower', name:'高塔', icon:'🗼', cost:3, desc:'选1张手牌销毁(牌堆变薄)' },
+  { id:'judgement', name:'审判', icon:'⚖️', cost:4, desc:'选1张手牌,随机变花色' },
+  { id:'the_world', name:'世界', icon:'🌍', cost:4, desc:'选1张手牌,自选花色' },
+];
+
+const PLANETS = [
+  { id:'mercury', name:'水星', icon:'☿', cost:3, handType:'一对', desc:'升级一对 +1倍率' },
+  { id:'venus', name:'金星', icon:'♀', cost:3, handType:'两对', desc:'升级两对 +1倍率' },
+  { id:'earth', name:'地球', icon:'⊕', cost:3, handType:'三条', desc:'升级三条 +2倍率' },
+  { id:'mars', name:'火星', icon:'♂', cost:3, handType:'顺子', desc:'升级顺子 +3底分' },
+  { id:'jupiter', name:'木星', icon:'♃', cost:3, handType:'同花', desc:'升级同花 +2倍率' },
+  { id:'saturn', name:'土星', icon:'♄', cost:3, handType:'葫芦', desc:'升级葫芦 +3倍率' },
+  { id:'uranus', name:'天王星', icon:'♅', cost:4, handType:'四条', desc:'升级四条 +3倍率' },
+  { id:'neptune', name:'海王星', icon:'♆', cost:4, handType:'同花顺', desc:'升级同花顺 +4倍率' },
+  { id:'pluto', name:'冥王星', icon:'♇', cost:4, handType:'高牌', desc:'升级高牌 +2底分+1倍率' },
+];
+
+const RARITY_NAMES = { common:'普通', rare:'稀有', epic:'史诗', legend:'传说' };
+const TYPE_NAMES = { chips:'底分', mult:'加倍率', xmult:'乘倍率', utility:'功能', temp:'临时' };
+
+// 统计
+const stats = document.getElementById('stats');
+stats.innerHTML = `
+  <div class="stat-box"><div class="num">${JOKERS.length}</div><div class="label">小丑牌</div></div>
+  <div class="stat-box"><div class="num">${TAROTS.length}</div><div class="label">塔罗牌</div></div>
+  <div class="stat-box"><div class="num">${PLANETS.length}</div><div class="label">星球牌</div></div>
+  <div class="stat-box"><div class="num">${JOKERS.length + TAROTS.length + PLANETS.length}</div><div class="label">总计</div></div>
+`;
+
+const container = document.getElementById('preview-container');
+
+// 按类型分组渲染小丑牌
+const typeGroups = [
+  { type: 'chips', title: '底分类', icon: '🟢' },
+  { type: 'mult', title: '加倍率类', icon: '🔴' },
+  { type: 'xmult', title: '乘倍率类', icon: '🟡' },
+  { type: 'utility', title: '功能类', icon: '🔵' },
+  { type: 'temp', title: '临时类', icon: '🟠' },
+];
+
+typeGroups.forEach(tg => {
+  const cards = JOKERS.filter(j => j.type === tg.type);
+  if (cards.length === 0) return;
+
+  const section = document.createElement('div');
+  section.className = 'section';
+  section.innerHTML = `
+    <div class="section-title">${tg.icon} ${tg.title} <span class="badge">${cards.length}张</span></div>
+    <div class="grid">
+      ${cards.map(j => `
+        <div class="joker-card rarity-${j.rarity}${j.temp ? ' temporary' : ''}">
+          <div class="icon">${j.icon}</div>
+          <div class="name">${j.name}</div>
+          <div class="rarity-tag">${RARITY_NAMES[j.rarity]}${j.temp ? ' · 临时' : ''}</div>
+          <div class="desc">${j.desc}</div>
+          <div class="cost">$${j.cost}</div>
+          <div class="type-tag type-${j.type}">${TYPE_NAMES[j.type]}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  container.appendChild(section);
+});
+
+// 塔罗牌
+const tarotSection = document.createElement('div');
+tarotSection.className = 'section';
+tarotSection.innerHTML = `
+  <div class="section-title">🔮 塔罗牌 <span class="badge">${TAROTS.length}张</span></div>
+  <div class="grid">
+    ${TAROTS.map(t => `
+      <div class="cons-card tarot">
+        <div class="type-label">塔罗牌</div>
+        <div class="icon">${t.icon}</div>
+        <div class="name">${t.name}</div>
+        <div class="desc">${t.desc}</div>
+        <div class="cost">$${t.cost}</div>
+      </div>
+    `).join('')}
+  </div>
+`;
+container.appendChild(tarotSection);
+
+// 星球牌
+const planetSection = document.createElement('div');
+planetSection.className = 'section';
+planetSection.innerHTML = `
+  <div class="section-title">🪐 星球牌 <span class="badge">${PLANETS.length}张</span></div>
+  <div class="grid">
+    ${PLANETS.map(p => `
+      <div class="cons-card planet">
+        <div class="type-label">星球牌 · ${p.handType}</div>
+        <div class="icon">${p.icon}</div>
+        <div class="name">${p.name}</div>
+        <div class="desc">${p.desc}</div>
+        <div class="cost">$${p.cost}</div>
+      </div>
+    `).join('')}
+  </div>
+`;
+container.appendChild(planetSection);
+</script>
+</body>
+</html>

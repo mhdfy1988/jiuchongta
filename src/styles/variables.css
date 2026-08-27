@@ -1,0 +1,10 @@
+:root {
+  --bg: #0a0a1a; --bg2: #0f0f2a;
+  --accent: #ff3366; --accent2: #ffaa00;
+  --gold: #ffcc22; --green: #00d97e;
+  --blue: #0099ff; --red: #ff3366; --purple: #aa44ff;
+  --text: #f0f0ff; --muted: #7a7a9a;
+  --shadow: 0 4px 15px rgba(0,0,0,0.6);
+  --rarity-common: #aaaaaa; --rarity-rare: #0099ff;
+  --rarity-epic: #aa44ff; --rarity-legend: #ffcc22;
+}
