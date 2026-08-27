@@ -627,16 +627,24 @@ export function useGameState() {
 
   function sortByRank() {
     const order = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
+    const calledCard = game.calledOutIndex !== null ? game.hand[game.calledOutIndex] : null
+    const selectedCards = game.selected.map(i => game.hand[i])
     game.hand.sort((a, b) => order[a.rank] - order[b.rank])
+    if (calledCard) game.calledOutIndex = game.hand.indexOf(calledCard)
+    game.selected = selectedCards.map(c => game.hand.indexOf(c)).filter(i => i !== -1)
   }
 
   function sortBySuit() {
     const order = { '♠':0, '♥':1, '♣':2, '♦':3 }
+    const calledCard = game.calledOutIndex !== null ? game.hand[game.calledOutIndex] : null
+    const selectedCards = game.selected.map(i => game.hand[i])
     game.hand.sort((a, b) => {
       if (order[a.suit] !== order[b.suit]) return order[a.suit] - order[b.suit]
       const ra = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
       return ra[a.rank] - ra[b.rank]
     })
+    if (calledCard) game.calledOutIndex = game.hand.indexOf(calledCard)
+    game.selected = selectedCards.map(c => game.hand.indexOf(c)).filter(i => i !== -1)
   }
 
   return {
