@@ -18,9 +18,8 @@
             </div>
           </div>
           <div class="cc-score">
-            <span class="cc-chips">{{ hand.base[0] }}</span>
-            <span class="cc-times">×</span>
-            <span class="cc-mult">{{ hand.base[1] }}</span>
+            <span class="cc-chip"><span class="cc-chip-label">底分</span><span class="cc-chip-val">{{ hand.base[0] }}</span></span>
+            <span class="cc-mult"><span class="cc-mult-label">倍率</span><span class="cc-mult-val">{{ hand.base[1] }}</span></span>
           </div>
         </div>
       </div>
@@ -111,7 +110,7 @@ function close() {
 .modal { background: linear-gradient(145deg, rgba(20,15,40,0.98), rgba(15,10,30,0.98)); border: 1px solid rgba(255,204,34,0.3); border-radius: 16px; padding: 18px; max-width: 720px; width: 94%; max-height: 90vh; overflow-y: auto; text-align: center; box-shadow: 0 0 40px rgba(255,204,34,0.15); }
 h2 { font-size: 18px; color: var(--gold); margin-bottom: 12px; }
 
-.chart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
 .chart-card { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.2s; }
 .chart-card:hover { background: rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.12); }
 .chart-card.upgraded { border-color: rgba(170,68,255,0.4); background: rgba(170,68,255,0.08); }
@@ -135,10 +134,16 @@ h2 { font-size: 18px; color: var(--gold); margin-bottom: 12px; }
 .mc-rank { font-size: 11px; font-weight: 900; line-height: 1; }
 .mc-suit { font-size: 9px; line-height: 1; }
 
-.cc-score { display: flex; align-items: center; gap: 4px; }
-.cc-chips { font-size: 16px; font-weight: 900; color: var(--blue); font-family: 'Bungee', sans-serif; }
-.cc-times { color: var(--muted); font-size: 13px; font-weight: 700; }
-.cc-mult { font-size: 16px; font-weight: 900; color: var(--red); font-family: 'Bungee', sans-serif; }
+.cc-score { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.cc-chip, .cc-mult {
+  display: flex; align-items: center; gap: 3px;
+  background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px;
+}
+.cc-chip-label, .cc-mult-label {
+  font-size: 9px; color: var(--muted); font-weight: 600;
+}
+.cc-chip-val { font-size: 14px; font-weight: 900; color: var(--blue); font-family: 'Bungee', sans-serif; }
+.cc-mult-val { font-size: 14px; font-weight: 900; color: var(--red); font-family: 'Bungee', sans-serif; }
 
 .chart-legend { display: flex; gap: 16px; justify-content: center; margin-bottom: 10px; }
 .legend-item { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; }

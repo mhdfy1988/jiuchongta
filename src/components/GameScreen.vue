@@ -27,9 +27,8 @@
       <div class="hand-eval" v-if="previewHand">
         <div class="eval-type">{{ previewHand.type }}</div>
         <div class="eval-formula">
-          <span class="chips">{{ previewHand.chips }}</span>
-          <span class="times">×</span>
-          <span class="mult">{{ previewHand.mult }}</span>
+          <span class="eval-chip"><span class="eval-label">底分</span><span class="eval-val chips">{{ previewHand.chips }}</span></span>
+          <span class="eval-mult"><span class="eval-label">倍率</span><span class="eval-val mult">{{ previewHand.mult }}</span></span>
         </div>
       </div>
 
@@ -45,14 +44,6 @@
         <div class="resource">
           <span class="r-label">💰 金币</span>
           <span class="r-value money">{{ game.money }}</span>
-        </div>
-        <div class="resource">
-          <span class="r-label">🃏 小丑</span>
-          <span class="r-value jokers">{{ game.jokers.length }}/6</span>
-        </div>
-        <div class="resource">
-          <span class="r-label">🔮 消耗</span>
-          <span class="r-value consumables">{{ game.consumables.length }}/2</span>
         </div>
       </div>
 
@@ -320,13 +311,18 @@ function hideTooltip() {
 .score-progress-bar { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent2)); border-radius: 2px; transition: width 0.5s ease; box-shadow: 0 0 8px var(--green); }
 
 .hand-eval { text-align: center; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px; }
-.eval-type { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
-.eval-formula { font-size: 18px; font-weight: 900; font-family: 'Bungee', sans-serif; }
-.eval-formula .chips { color: var(--blue); }
-.eval-formula .times { color: var(--muted); margin: 0 4px; }
-.eval-formula .mult { color: var(--red); }
+.eval-type { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 6px; }
+.eval-formula { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.eval-chip, .eval-mult {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.06); padding: 3px 10px; border-radius: 6px;
+}
+.eval-label { font-size: 10px; color: var(--muted); font-weight: 600; }
+.eval-val { font-size: 16px; font-weight: 900; font-family: 'Bungee', sans-serif; }
+.eval-val.chips { color: var(--blue); }
+.eval-val.mult { color: var(--red); }
 
-.resources { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.resources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .resource { text-align: center; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 6px; }
 .r-label { font-size: 9px; color: var(--muted); display: block; letter-spacing: 0.5px; }
 .r-value { font-size: 20px; font-weight: 900; font-family: 'Bungee', sans-serif; text-shadow: 0 0 8px currentColor; }
@@ -358,7 +354,7 @@ function hideTooltip() {
 .sidebar-btn {
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
   color: var(--text); font-size: 12px; font-weight: 600; padding: 8px 12px;
-  border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: left;
+  border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center;
 }
 .sidebar-btn:hover { background: rgba(255,255,255,0.12); }
 .sidebar-btn.exit-btn { color: var(--red); border-color: rgba(255,51,102,0.2); }
