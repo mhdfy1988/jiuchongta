@@ -28,7 +28,7 @@ export function useGameState() {
     totalScore: 0, maxSingleScore: 0,
     animating: false, consumables: [], handUpgrades: {},
     pendingConsumable: null, pendingSuit: null, lastPlayedHand: null,
-    calledOutIndex: null,
+    calledOutIndex: null, cleared: false,
   })
 
   const stats = ref(loadStats())
@@ -79,6 +79,7 @@ export function useGameState() {
       totalScore: 0, maxSingleScore: 0, animating: false,
       consumables: [], handUpgrades: {},
       pendingConsumable: null, pendingSuit: null, lastPlayedHand: null, calledOutIndex: null,
+      cleared: false,
     })
 
     applyBossDebuff()
@@ -385,6 +386,7 @@ export function useGameState() {
   function gameClear() {
     SFX.win()
     setTimeout(() => SFX.achievement(), 400)
+    game.cleared = true
     if (game.mode === 'hard') {
       stats.value.hardClears = (stats.value.hardClears || 0) + 1
       if (!stats.value.unlockedChars?.includes('straight')) {

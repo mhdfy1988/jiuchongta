@@ -46,7 +46,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js'
 const props = defineProps({ state: Object })
 const game = props.state.game
 
-const isClear = computed(() => game.level >= 9 && game.mode !== 'endless')
+const isClear = computed(() => game.cleared && game.mode !== 'endless')
 
 const modeName = computed(() => {
   if (game.mode === 'simple') return '简单'
