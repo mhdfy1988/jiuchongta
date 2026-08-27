@@ -92,6 +92,25 @@ export function useGameState() {
     saveGame()
   }
 
+  function applyBossDebuffEffects() {
+    if (!game.bossDebuff) return
+    if (game.bossDebuff.id === 'shackles') game.handSize = 7
+    if (game.bossDebuff.id === 'no_discard') game.discardsLeft = 0
+    if (game.bossDebuff.id === 'pinhole') game.handsLeft = 1
+    if (game.bossDebuff.id === 'high_wall') game.targetScore = Math.floor(game.targetScore * 1.5)
+    if (game.bossDebuff.id === 'color_cut' && !game.bossDebuff.disabledSuit) {
+      game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
+    }
+    if (game.bossDebuff.id === 'lockdown' && !game.bossDebuff.disabledHand) {
+      const types = ['同花顺','同花','顺子','葫芦','四条','一对']
+      game.bossDebuff.disabledHand = types[Math.floor(Math.random() * types.length)]
+    }
+    if (game.bossDebuff.id === 'silence' && game.jokers.length > 0 && !game.silencedJoker) {
+      const permanent = game.jokers.filter(j => !j.data?.locked)
+      if (permanent.length > 0) game.silencedJoker = permanent[Math.floor(Math.random() * permanent.length)]
+    }
+  }
+
   function applyBossDebuff() {
     if (!isBossLevel(game.level) && game.mode !== 'endless') { game.bossDebuff = null; return }
     if (game.mode === 'endless' && !isBossLevel(((game.level - 1) % 9) + 1)) { game.bossDebuff = null; return }
@@ -99,20 +118,9 @@ export function useGameState() {
     const poolName = game.mode === 'endless' ? getBossPool(((game.level - 1) % 9) + 1) : getBossPool(game.level)
     const pool = BOSS_DEBUFFS[poolName]
     game.bossDebuff = { ...pool[Math.floor(Math.random() * pool.length)] }
+    game.silencedJoker = null
 
-    if (game.bossDebuff.id === 'shackles') game.handSize = 7
-    if (game.bossDebuff.id === 'no_discard') game.discardsLeft = 0
-    if (game.bossDebuff.id === 'pinhole') game.handsLeft = 1
-    if (game.bossDebuff.id === 'high_wall') game.targetScore = Math.floor(game.targetScore * 1.5)
-    if (game.bossDebuff.id === 'color_cut') game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
-    if (game.bossDebuff.id === 'lockdown') {
-      const types = ['同花顺','同花','顺子','葫芦','四条','一对']
-      game.bossDebuff.disabledHand = types[Math.floor(Math.random() * types.length)]
-    }
-    if (game.bossDebuff.id === 'silence' && game.jokers.length > 0) {
-      const permanent = game.jokers.filter(j => !j.data?.locked)
-      if (permanent.length > 0) game.silencedJoker = permanent[Math.floor(Math.random() * permanent.length)]
-    }
+    applyBossDebuffEffects()
   }
 
   function selectCard(index) {
@@ -340,13 +348,22 @@ export function useGameState() {
     if (game.lives > 0) {
       game.lives--
       showToast(`复活! 剩余复活次数: ${game.lives}`)
+      game.handSize = 8
       game.handsLeft = 4
       game.discardsLeft = 4
       game.levelScore = 0
+      game.lockedHandType = null
+      game.playedHandTypes = []
       game.deck = shuffle(createDeck())
       game.hand = []
       game.selected = []
       game.calledOutIndex = null
+      // 重新应用 Boss debuff 效果（除了 high_wall，避免目标分重复乘算）
+      if (game.bossDebuff) {
+        if (game.bossDebuff.id === 'shackles') game.handSize = 7
+        if (game.bossDebuff.id === 'no_discard') game.discardsLeft = 0
+        if (game.bossDebuff.id === 'pinhole') game.handsLeft = 1
+      }
       drawCards(game, game.handSize)
       if (game.bossDebuff?.id === 'called_out' && game.hand.length > 0) {
         game.calledOutIndex = Math.floor(Math.random() * game.hand.length)
