@@ -11,8 +11,9 @@
 - 8 张塔罗牌 + 9 张星球牌
 - 3 个可解锁角色，各有初始小丑
 - 3 种游戏模式（简单 / 困难 / 无尽）
-- 9 个 Boss 减益效果
+- 12 个 Boss 减益效果（初级/中级/高级各 4 个）
 - 10 个成就
+- 计分动画（牌型亮相 → 逐条叠加 → 爆燃结算）
 - 本地存档自动保存
 - 响应式布局，适配桌面和移动端
 
@@ -87,11 +88,21 @@ src/
 │   ├── LevelCompleteModal.vue  # 过关弹窗
 │   ├── GameOverModal.vue     # 游戏结束
 │   ├── RunStatsModal.vue     # 本局统计
-│   └── AchievementsModal.vue # 成就
+│   ├── AchievementsModal.vue # 成就
+│   └── ScoreAnimation.vue    # 计分动画
 ├── composables/         # 组合式函数
 │   ├── useGameState.js      # 游戏状态管理
-│   ├── useScoring.js        # 计分逻辑
 │   └── useAudio.js          # 音效
+├── systems/             # 游戏系统
+│   ├── cardSystem.js        # 卡牌系统
+│   ├── scoringSystem.js     # 计分系统
+│   ├── bossSystem.js        # Boss 系统
+│   ├── levelSystem.js       # 关卡系统
+│   ├── jokerSystem.js       # 小丑系统
+│   ├── shopSystem.js        # 商店系统
+│   ├── consumableSystem.js  # 消耗品系统
+│   ├── saveSystem.js        # 存档系统
+│   └── achievementSystem.js # 成就系统
 ├── data/                # 游戏数据
 │   ├── constants.js         # 常量（牌型、花色等）
 │   ├── jokers.js            # 小丑牌定义
@@ -103,7 +114,10 @@ src/
 │   ├── variables.css        # CSS 变量
 │   └── base.css             # 全局样式
 ├── utils/               # 工具函数
-│   └── cardUtils.js         # 卡牌工具
+│   ├── cardUtils.js         # 卡牌工具
+│   ├── eventBus.js          # 事件总线
+│   ├── gameData.js          # 游戏数据查询
+│   └── scoreAnim.js         # 计分动画时序
 ├── App.vue              # 根组件
 └── main.js              # 入口文件
 ```

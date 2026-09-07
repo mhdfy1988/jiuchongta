@@ -124,13 +124,27 @@ describe('计分', () => {
     expect(r.chips).toBe(10 + 2 + 2)
   })
 
-  it('Boss color_cut 禁用花色不计分', () => {
-    // 一对2，一张♠一张♥，禁用♠后只有♥的2计分
+  it('Boss color_cut 禁用花色不参与牌型判定和计分', () => {
+    // 一对2(♠+♥) + 9♣ + J♦ + K♠,禁用♠后有效牌:2♥,9♣,J♦ → 高牌
     const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
     const game = fakeGame({ bossDebuff: { id: 'color_cut', disabledSuit: '♠' } })
     const r = calculateScore(cards, game)
-    // 一对基础10 + ♥的2（2点）
-    expect(r.chips).toBe(10 + 2)
+    expect(r.type).toBe('高牌')
+    // 高牌基础5 + J(10点)
+    expect(r.chips).toBe(5 + 10)
+  })
+
+  it('Boss no_repeat 重复牌型不计分(能打但得0分)', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ bossDebuff: { id: 'no_repeat', name: '不许重复' }, playedHandTypes: ['一对'] })
+    const r = calculateScore(cards, game)
+    expect(r.total).toBe(0)
+    expect(r.zeroedByNoRepeat).toBe(true)
+    // 首次打的牌型正常计分
+    const game2 = fakeGame({ bossDebuff: { id: 'no_repeat', name: '不许重复' }, playedHandTypes: [] })
+    const r2 = calculateScore(cards, game2)
+    expect(r2.total).toBeGreaterThan(0)
+    expect(r2.zeroedByNoRepeat).toBeFalsy()
   })
 
   it('牌型升级加chips', () => {

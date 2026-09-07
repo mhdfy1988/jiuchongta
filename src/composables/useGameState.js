@@ -3,6 +3,7 @@ import { bus, EVENTS } from '../utils/eventBus.js'
 import { SAVE_KEY } from '../data/constants.js'
 import { CHARACTERS, MODES } from '../data/characters.js'
 import { useAudio } from './useAudio.js'
+import { scoreAnimDuration } from '../utils/scoreAnim.js'
 
 // 系统
 import { createCardSystem } from '../systems/cardSystem.js'
@@ -47,6 +48,11 @@ export function useGameState() {
   const lastScoreResult = ref(null)
   const toasts = ref([])
   const jokerBonusPopups = ref([])
+  let scoreTimer = null
+  let pendingScoreResult = null
+  // 本局开始时已有的成就快照,用于结算时计算"本局新解锁"
+  const startAchievements = ref({})
+  const newAchievements = ref([]) // 本局过程中新解锁的成就列表
 
   // ========== 系统实例 ==========
   const cards = createCardSystem(game, bus)
@@ -103,6 +109,7 @@ export function useGameState() {
     boss.reapplyForRevive()
     cards.initDeck()
     cards.draw(game.handSize)
+    boss.ensureCalledOut() // 点名 Boss:抽完手牌后立刻点名
     saveSys.saveGame()
   })
 
@@ -115,6 +122,10 @@ export function useGameState() {
 
   bus.on(EVENTS.ACHIEVEMENT_UNLOCKED, ({ achievement }) => {
     showToast(`🏆 成就解锁: ${achievement.name}!`, true)
+    // 记录到本局新解锁列表
+    if (!newAchievements.value.find(a => a.id === achievement.id)) {
+      newAchievements.value.push(achievement)
+    }
   })
 
   // ========== 游戏流程 API ==========
@@ -122,12 +133,22 @@ export function useGameState() {
   function startGame() {
     const charDef = CHARACTERS.find(c => c.id === selectedChar.value)
 
+    // 记录本局开始时的成就快照
+    startAchievements.value = { ...stats.value }
+    newAchievements.value = []
+
     // 重置状态
     game.money = 5
     game.handTypeCounts = {}
     game.cardEnhancements = {}
     game.handUpgrades = {}
     game.rerollCount = 0
+    game.consumables = []
+    game.pendingConsumable = null
+    game.pendingSuit = null
+    if (scoreTimer) { clearTimeout(scoreTimer); scoreTimer = null }
+    pendingScoreResult = null
+    lastScoreResult.value = null
 
     level.startRun(selectedMode.value, selectedChar.value)
     boss.resetForNewLevel()
@@ -141,6 +162,7 @@ export function useGameState() {
     cards.initDeck()
     boss.pickBoss()
     cards.draw(game.handSize)
+    boss.ensureCalledOut() // 点名 Boss:抽完手牌后立刻点名
 
     screen.value = 'game'
     const modeName = game.mode === 'simple' ? '简单' : game.mode === 'hard' ? '困难' : '无尽'
@@ -178,7 +200,8 @@ export function useGameState() {
     const blockedMsg = boss.validatePlay(result.type)
     if (blockedMsg) { showToast(blockedMsg); return }
 
-    level.recordScore(result)
+    // 计分延迟到动画结束后(见 finishScoreAnim),让左侧当前分在特效播完后再上涨
+    pendingScoreResult = result
     boss.recordPlayed(result.type)
 
     // 成就检测
@@ -223,13 +246,29 @@ export function useGameState() {
     // 点名 Boss：下一张
     if (game.bossDebuff?.id === 'called_out') boss.rollCalledOut()
 
-    setTimeout(() => {
-      game.animating = false
-      lastScoreResult.value = null
-      level.afterPlayCheck()
-    }, 1400)
+    scoreTimer = setTimeout(finishScoreAnim, scoreAnimDuration(result))
 
     saveSys.saveGame()
+  }
+
+  // 计分动画收尾:计分入帐 → 解锁操作 → 胜负检查
+  function finishScoreAnim() {
+    scoreTimer = null
+    game.animating = false
+    lastScoreResult.value = null
+    if (pendingScoreResult) {
+      level.recordScore(pendingScoreResult)
+      pendingScoreResult = null
+      saveSys.saveGame()
+    }
+    level.afterPlayCheck()
+  }
+
+  // 点击跳过动画:立即跳到结算,缩短收尾等待
+  function skipScoreAnim(remaining = 1300) {
+    if (!lastScoreResult.value) return
+    if (scoreTimer) clearTimeout(scoreTimer)
+    scoreTimer = setTimeout(finishScoreAnim, remaining)
   }
 
   function discardCards() {
@@ -271,6 +310,7 @@ export function useGameState() {
     cards.initDeck()
     boss.pickBoss()
     cards.draw(game.handSize)
+    boss.ensureCalledOut() // 点名 Boss:抽完手牌后立刻点名
 
     if (game.mode === 'endless') {
       stats.value.maxEndless = Math.max(stats.value.maxEndless || 0, game.level)
@@ -352,13 +392,13 @@ export function useGameState() {
 
   return {
     // 状态
-    game, stats, selectedChar, selectedMode,
+    game, stats, startAchievements, newAchievements, selectedChar, selectedMode,
     shopItems, shopConsumables,
     screen, showModal, lastScoreResult, toasts, jokerBonusPopups,
     // 系统引用（方便组件直接用）
     cards, scoring, boss, level, jokers, shop, consumables,
     // 游戏流程
-    startGame, selectCard, playHand, discardCards,
+    startGame, selectCard, playHand, discardCards, skipScoreAnim,
     goToShop, nextLevel, loseLevel,
     exitToMenu, continueGame,
     // 商店

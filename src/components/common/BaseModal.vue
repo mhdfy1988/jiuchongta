@@ -36,6 +36,7 @@ function handleOverlayClick() {
 }
 
 .modal {
+  position: relative;
   background: linear-gradient(145deg, rgba(20, 15, 40, 0.98), rgba(15, 10, 30, 0.98));
   border: 1px solid rgba(255, 204, 34, 0.3);
   border-radius: 16px;

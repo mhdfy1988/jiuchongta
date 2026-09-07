@@ -18,6 +18,7 @@ export const PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,7
 
 export const CONSUMABLE_SLOTS = 2
 export const SAVE_KEY = 'pokerRoguelikeSave'
+export const SAVE_VERSION = 2
 
 export const RARITY_NAMES = { common:'普通', rare:'稀有', epic:'史诗', legend:'传说' }
 export const TYPE_NAMES = { chips:'底分', mult:'倍率', xmult:'乘倍率', utility:'功能', temp:'临时' }

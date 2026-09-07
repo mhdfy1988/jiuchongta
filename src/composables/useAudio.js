@@ -58,6 +58,14 @@ export const SFX = {
   discard() { playNoise(0.15, 0.08); playTone(300, 0.08, 'sawtooth', 0.06); },
   score() { playTone(523, 0.1, 'sine', 0.1); playTone(659, 0.1, 'sine', 0.08, 0.08); playTone(784, 0.15, 'sine', 0.08, 0.16); },
   jokerTrigger() { playTone(880, 0.06, 'square', 0.05); },
+  // 计分动画:逐条叠加,音调随条目上升
+  scoreTick(step = 0) { const f = 520 + Math.min(step, 14) * 45; playTone(f, 0.06, 'triangle', 0.09); playTone(f * 1.5, 0.05, 'sine', 0.05, 0.02); },
+  // 计分动画:牌型砸入
+  scoreSlam() { playTone(180, 0.12, 'sawtooth', 0.1); playNoise(0.08, 0.05); },
+  // 计分动画:爆燃结算
+  explosion() { playNoise(0.4, 0.22); playTone(90, 0.35, 'sawtooth', 0.18); playTone(60, 0.4, 'sine', 0.2, 0.02); playTone(1200, 0.1, 'square', 0.05, 0.02); playTone(1600, 0.08, 'square', 0.03, 0.06); },
+  // 计分动画:归零(不许重复等)
+  zeroScore() { playTone(300, 0.15, 'sawtooth', 0.12); playTone(180, 0.25, 'sawtooth', 0.08, 0.08); playTone(100, 0.3, 'sine', 0.06, 0.15); },
   win() { playTone(523, 0.1, 'triangle', 0.1); playTone(659, 0.1, 'triangle', 0.1, 0.1); playTone(784, 0.1, 'triangle', 0.1, 0.2); playTone(1047, 0.2, 'triangle', 0.12, 0.3); },
   lose() { playTone(300, 0.2, 'sawtooth', 0.1); playTone(200, 0.3, 'sawtooth', 0.08, 0.15); },
   buy() { playTone(660, 0.05, 'square', 0.08); playTone(880, 0.08, 'square', 0.06, 0.03); },

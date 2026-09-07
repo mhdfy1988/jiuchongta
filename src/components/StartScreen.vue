@@ -50,7 +50,7 @@
     </template>
 
     <!-- 卡牌图鉴弹窗 -->
-    <CardCollectionModal v-if="state.showModal.value === 'collection'" :state="state" />
+    <CardCollectionModal v-if="state.showModal.value === 'collection'" :state="state" @close="state.showModal.value = null" />
     <AchievementsModal v-if="state.showModal.value === 'achievements'" :stats="state.stats.value" @close="state.showModal.value = null" />
   </div>
 </template>

@@ -8,6 +8,42 @@
       <div v-if="game.bossDebuff" class="boss-debuff">
         <div class="boss-name">{{ game.bossDebuff.name }}</div>
         <div class="boss-desc">{{ game.bossDebuff.desc }}</div>
+
+        <!-- 封锁: 禁用牌型 -->
+        <div v-if="game.bossDebuff.id === 'lockdown' && game.bossDebuff.disabledHand" class="boss-detail">
+          <span class="bd-label">禁用</span>
+          <span class="bd-val">{{ game.bossDebuff.disabledHand }}</span>
+        </div>
+
+        <!-- 断色: 禁用花色 -->
+        <div v-if="game.bossDebuff.id === 'color_cut' && game.bossDebuff.disabledSuit" class="boss-detail">
+          <span class="bd-label">禁用花色</span>
+          <span class="bd-val suit">{{ game.bossDebuff.disabledSuit }}</span>
+        </div>
+
+        <!-- 沉默: 禁了哪张 -->
+        <div v-if="game.bossDebuff.id === 'silence' && silencedJokerName" class="boss-detail">
+          <span class="bd-label">沉默</span>
+          <span class="bd-val">{{ silencedJokerName }}</span>
+        </div>
+
+        <!-- 唯一: 锁定牌型 -->
+        <div v-if="game.bossDebuff.id === 'only_one' && game.lockedHandType" class="boss-detail">
+          <span class="bd-label">锁定</span>
+          <span class="bd-val">{{ game.lockedHandType }}</span>
+        </div>
+
+        <!-- 不许重复: 已打 -->
+        <div v-if="game.bossDebuff.id === 'no_repeat' && game.playedHandTypes.length > 0" class="boss-detail">
+          <span class="bd-label">已打</span>
+          <span class="bd-val small">{{ game.playedHandTypes.join('、') }}</span>
+        </div>
+
+        <!-- 点名: 当前点名牌 -->
+        <div v-if="game.bossDebuff.id === 'called_out' && calledOutCard" class="boss-detail">
+          <span class="bd-label">点名牌</span>
+          <span class="bd-val suit">{{ calledOutCard.rank }}{{ calledOutCard.suit }}</span>
+        </div>
       </div>
 
       <div class="score-section">
@@ -17,7 +53,7 @@
         </div>
         <div class="score-box score">
           <div class="label">⭐ 当前分</div>
-          <div class="val">{{ game.levelScore.toLocaleString() }}</div>
+          <div class="val">{{ displayLevelScore.toLocaleString() }}</div>
         </div>
         <div class="score-progress">
           <div class="score-progress-bar" :style="{ width: progressPercent + '%' }"></div>
@@ -68,24 +104,17 @@
             v-for="(joker, idx) in game.jokers"
             :key="'j'+idx"
             :def="getJokerDef(joker) || {}"
-            size="sm"
+            size="md"
             :locked="joker.data?.locked"
+            :temporary="getJokerDef(joker)?.temp"
+            :interactive="false"
+            :stacks="joker.data?.stacks || 0"
+            :show-delete="!joker.data?.locked"
+            :bonus-popups="bonusPopupsFor(idx)"
+            @delete="state.deleteJoker(idx)"
             @hover="(e, def) => showJokerTip(e, def, joker)"
             @leave="hideTip"
-          >
-            <template v-if="joker.data?.stacks" #stack>
-              <div class="j-stacks">{{ joker.data.stacks }}</div>
-            </template>
-            <template v-if="!joker.data?.locked" #action>
-              <div class="j-delete" @click.stop="state.deleteJoker(idx)">$</div>
-            </template>
-            <div
-              v-for="popup in bonusPopupsFor(idx)"
-              :key="popup.text"
-              class="joker-bonus-popup"
-              :style="{ color: popup.color }"
-            >{{ popup.text }}</div>
-          </JokerCard>
+          />
           <div v-for="n in Math.max(0, 6 - game.jokers.length)" :key="'ej'+n" class="empty-slot joker-slot">
             <span class="slot-plus">+</span>
           </div>
@@ -97,8 +126,10 @@
             :key="'c'+idx"
             :def="getConsDef(cons) || {}"
             :type="cons.type"
-            size="sm"
+            size="md"
+            :interactive="false"
             @click="state.useConsumable(idx)"
+            @contextmenu="state.sellConsumable(idx)"
             @hover="(e, def) => showConsTip(e, def, cons.type)"
             @leave="hideTip"
           />
@@ -169,16 +200,14 @@
       </div>
     </aside>
 
-    <!-- 计分弹窗 -->
-    <div v-if="state.lastScoreResult.value" class="score-popup">
-      <div class="sp-type">{{ state.lastScoreResult.value.type }}</div>
-      <div class="sp-formula">
-        <span class="sp-chips">{{ state.lastScoreResult.value.chips }}</span>
-        <span class="sp-times">×</span>
-        <span class="sp-mult">{{ state.lastScoreResult.value.mult }}</span>
-      </div>
-      <div class="sp-total">{{ state.lastScoreResult.value.total.toLocaleString() }}</div>
-    </div>
+    <!-- 计分动画 -->
+    <Transition name="sa-fade">
+      <ScoreAnimation
+        v-if="state.lastScoreResult.value"
+        :result="state.lastScoreResult.value"
+        @skip="state.skipScoreAnim"
+      />
+    </Transition>
 
     <!-- 悬浮提示 -->
     <Tooltip
@@ -199,16 +228,16 @@
     <LevelCompleteModal v-if="state.showModal.value === 'levelcomplete'" :state="state" />
     <ShopModal v-if="state.showModal.value === 'shop'" :state="state" />
     <GameOverModal v-if="state.showModal.value === 'gameover'" :state="state" />
-    <HandChartModal v-if="state.showModal.value === 'handchart'" :state="state" />
-    <DeckViewModal v-if="state.showModal.value === 'deckview'" :state="state" />
-    <CardCollectionModal v-if="state.showModal.value === 'collection'" :state="state" />
-    <RunStatsModal v-if="state.showModal.value === 'runstats'" :state="state" />
+    <HandChartModal v-if="state.showModal.value === 'handchart'" :state="state" @close="state.showModal.value = null" />
+    <DeckViewModal v-if="state.showModal.value === 'deckview'" :state="state" @close="state.showModal.value = null" />
+    <CardCollectionModal v-if="state.showModal.value === 'collection'" :state="state" @close="state.showModal.value = null" />
+    <RunStatsModal v-if="state.showModal.value === 'runstats'" :state="state" @close="state.showModal.value = null" />
     <AchievementsModal v-if="state.showModal.value === 'achievements'" :stats="state.stats.value" @close="state.showModal.value = null" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, reactive } from 'vue'
+import { computed, ref, reactive, watch } from 'vue'
 import { getJoker } from '../utils/gameData.js'
 import { getConsumableDef } from '../utils/gameData.js'
 import { isBossLevel, RARITY_NAMES } from '../data/constants.js'
@@ -225,6 +254,7 @@ import DeckViewModal from './DeckViewModal.vue'
 import CardCollectionModal from './CardCollectionModal.vue'
 import RunStatsModal from './RunStatsModal.vue'
 import AchievementsModal from './AchievementsModal.vue'
+import ScoreAnimation from './ScoreAnimation.vue'
 
 const props = defineProps({ state: Object })
 const game = props.state.game
@@ -237,6 +267,34 @@ const isBoss = computed(() => {
 
 const progressPercent = computed(() => {
   return Math.min(100, (game.levelScore / game.targetScore) * 100)
+})
+
+// Boss debuff 动态信息
+const silencedJokerName = computed(() => {
+  if (!game.silencedJoker) return ''
+  const def = getJoker(game.silencedJoker.id)
+  return def?.name || ''
+})
+const calledOutCard = computed(() => {
+  if (game.calledOutId == null) return null
+  return game.hand.find(c => c.id === game.calledOutId) || null
+})
+
+// 当前分滚动上涨(计分动画结束后 levelScore 才入账,这里做数字滚动)
+const displayLevelScore = ref(game.levelScore)
+let scoreRollRaf = null
+watch(() => game.levelScore, (to, from) => {
+  if (scoreRollRaf) cancelAnimationFrame(scoreRollRaf)
+  if (to <= from) { displayLevelScore.value = to; return } // 重置/新层直接变
+  const start = performance.now()
+  const dur = 700
+  function step(now) {
+    const p = Math.min(1, (now - start) / dur)
+    const e = 1 - Math.pow(1 - p, 3)
+    displayLevelScore.value = Math.round(from + (to - from) * e)
+    if (p < 1) scoreRollRaf = requestAnimationFrame(step)
+  }
+  scoreRollRaf = requestAnimationFrame(step)
 })
 
 const previewHand = computed(() => {
@@ -324,6 +382,15 @@ function hideTip() { tip.visible = false }
 }
 .boss-debuff .boss-name { font-weight: 800; margin-bottom: 2px; }
 .boss-debuff .boss-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+.boss-detail {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 4px; padding: 2px 6px; background: rgba(0,0,0,0.25); border-radius: 4px;
+  font-size: 11px;
+}
+.bd-label { color: var(--muted); font-weight: 600; font-size: 10px; }
+.bd-val { color: var(--accent); font-weight: 800; }
+.bd-val.small { font-size: 10px; }
+.bd-val.suit { font-family: 'Bungee', sans-serif; font-size: 13px; }
 
 .score-section { background: rgba(0,0,0,0.4); border-radius: 10px; padding: 10px; }
 .score-box { text-align: center; margin-bottom: 6px; }
@@ -408,7 +475,7 @@ function hideTip() { tip.visible = false }
   transition: border-color 0.3s, background 0.3s;
 }
 .empty-slot.joker-slot { width: 78px; height: 110px; }
-.empty-slot.consumable-slot { width: 70px; height: 100px; }
+.empty-slot.consumable-slot { width: 78px; height: 110px; }
 .empty-slot .slot-plus { font-size: 32px; color: rgba(255,255,255,0.25); font-weight: 300; }
 .empty-slot:hover { border-color: rgba(255,204,34,0.5); background: rgba(255,204,34,0.06); }
 .empty-slot:hover .slot-plus { color: rgba(255,204,34,0.5); }
@@ -433,11 +500,6 @@ function hideTip() { tip.visible = false }
   border-radius: 14px; padding: 20px 12px; margin: 8px 0;
   overflow-x: auto; overflow-y: hidden;
 }
-.playing-card.called-out {
-  box-shadow: 0 0 20px rgba(255,51,102,0.8) !important;
-  border-color: var(--accent) !important;
-}
-
 .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 /* ===== 右侧牌堆 ===== */
@@ -478,21 +540,9 @@ function hideTip() { tip.visible = false }
 }
 .cs-label { color: var(--purple); font-size: 12px; font-weight: 600; text-align: center; }
 
-/* ===== 计分弹窗 ===== */
-.score-popup {
-  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  background: rgba(10,10,30,0.95); backdrop-filter: blur(12px);
-  border: 2px solid var(--gold); border-radius: 16px; padding: 16px 32px;
-  text-align: center; z-index: 200; box-shadow: 0 0 40px rgba(255,204,34,0.3);
-  animation: scorePopup 0.4s ease-out;
-}
-@keyframes scorePopup { from { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } }
-.sp-type { font-size: 20px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
-.sp-formula { font-size: 28px; font-weight: 900; font-family: 'Bungee', sans-serif; margin-bottom: 4px; }
-.sp-chips { color: var(--blue); }
-.sp-times { color: var(--muted); margin: 0 8px; }
-.sp-mult { color: var(--red); }
-.sp-total { font-size: 36px; font-weight: 900; font-family: 'Bungee', sans-serif; color: var(--green); text-shadow: 0 0 20px var(--green); }
+/* ===== 计分动画 ===== */
+.sa-fade-leave-active { transition: opacity 0.3s ease; }
+.sa-fade-leave-to { opacity: 0; }
 
 /* ===== Toast ===== */
 .toast-container { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 300; }

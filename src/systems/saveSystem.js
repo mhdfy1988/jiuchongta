@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { bus, EVENTS } from '../utils/eventBus.js'
 import { storage } from '../utils/storage.js'
-import { SAVE_KEY } from '../data/constants.js'
+import { SAVE_KEY, SAVE_VERSION } from '../data/constants.js'
 
 const STATS_KEY = 'pokerRoguelikeStats'
 
@@ -20,9 +20,14 @@ export function createSaveSystem(game, bus) {
   // ---------- 游戏存档 ----------
 
   function saveGame() {
-    const saveData = { ...game }
-    // 数组展开（reactive 浅拷贝需要手动处理引用字段）
+    const saveData = {
+      ...game,
+      __version: SAVE_VERSION,
+    }
     saveData.playedHandTypes = [...game.playedHandTypes]
+    // silencedJoker 是对象引用，直接序列化会断裂；改存下标，读档时再还原
+    const silIdx = game.jokers.indexOf(game.silencedJoker)
+    saveData.silencedJoker = silIdx >= 0 ? silIdx : null
     storage.set(SAVE_KEY, saveData)
     updateFlag()
     bus.emit(EVENTS.SAVE_UPDATED)
@@ -31,16 +36,22 @@ export function createSaveSystem(game, bus) {
   function loadGame() {
     const data = storage.get(SAVE_KEY, null)
     if (!data) return false
+    // 版本不匹配直接丢弃旧存档
+    if (data.__version !== SAVE_VERSION) {
+      clearSave()
+      return false
+    }
     Object.assign(game, data)
     game.playedHandTypes = data.playedHandTypes || []
-    // 兼容旧版：calledOutIndex 不存在或无效时，重置选中状态
-    if (game.bossDebuff?.id === 'called_out') {
-      if (typeof game.calledOutId !== 'number' || !game.hand.some(c => c.id === game.calledOutId)) {
-        // 由 BossSystem 去 roll，这里先清掉
-        game.calledOutId = game.hand.length > 0 ? game.hand[0].id : null
-      }
+    game.selected = [] // 读档后清空选中
+    game.pendingConsumable = null // 待选状态不随存档恢复
+    game.pendingSuit = null
+    // 恢复 silencedJoker 对象引用（存档里存的是下标）
+    if (typeof data.silencedJoker === 'number' && data.silencedJoker >= 0 && data.silencedJoker < game.jokers.length) {
+      game.silencedJoker = game.jokers[data.silencedJoker]
+    } else {
+      game.silencedJoker = null
     }
-    game.selected = [] // 读档后清空选中，避免旧索引错乱
     updateFlag()
     return true
   }

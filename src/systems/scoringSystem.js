@@ -122,22 +122,25 @@ export function createScoringSystem() {
   }
 
   function calculateScore(cards, game) {
-    const evalResult = evaluateHand(cards, game)
+    // color_cut:被禁花色的牌不参与牌型判定和计分
+    const disabledSuit = game.bossDebuff?.id === 'color_cut' ? game.bossDebuff.disabledSuit : null
+    const effectiveCards = disabledSuit
+      ? cards.filter(c => c.suit !== disabledSuit)
+      : cards
+
+    const evalResult = evaluateHand(effectiveCards, game)
     let chips = evalResult.chips
     let mult = evalResult.mult
     const triggerLog = []
 
-    // splash：所有打出的牌都计分
+    // splash：所有打出的有效牌都计分
     let scoringCards = evalResult.scoringCards
     const splash = game.jokers.find(j => j.id === 'splash')
-    if (splash) scoringCards = [...cards]
+    if (splash) scoringCards = [...effectiveCards]
 
-    // Boss 过滤（人头牌/花色不计分）必须在累加底分之前
+    // Boss 过滤（人头牌不计分,只影响底分不影响牌型）
     if (game.bossDebuff?.id === 'seal_king') {
       scoringCards = scoringCards.filter(c => !FACE_CARDS.includes(c.rank))
-    }
-    if (game.bossDebuff?.id === 'color_cut' && game.bossDebuff.disabledSuit) {
-      scoringCards = scoringCards.filter(c => c.suit !== game.bossDebuff.disabledSuit)
     }
 
     // 基础：每张计分牌的点数
@@ -192,6 +195,14 @@ export function createScoringSystem() {
     mult = ctx.mult
     const total = Math.floor(chips * mult * ctx.finalMult)
 
+    // no_repeat: 重复牌型不计分
+    let finalTotal = total
+    let noRepeatZeroed = false
+    if (game.bossDebuff?.id === 'no_repeat' && game.playedHandTypes.includes(evalResult.type)) {
+      finalTotal = 0
+      noRepeatZeroed = true
+    }
+
     // 明细
     const breakdown = []
     breakdown.push({ label: evalResult.type + ' 基础', chips: evalResult.chips, mult: evalResult.mult })
@@ -202,7 +213,7 @@ export function createScoringSystem() {
       breakdown.push({ label: log.name, chips: log.chips || 0, mult: log.mult || 0 })
     })
 
-    return { type: evalResult.type, chips, mult, total, scoringCards, triggerLog, breakdown }
+    return { type: evalResult.type, chips, mult, total: finalTotal, scoringCards, triggerLog, breakdown, zeroedByNoRepeat: noRepeatZeroed }
   }
 
   return { evaluateHand, calculateScore, findStraight }

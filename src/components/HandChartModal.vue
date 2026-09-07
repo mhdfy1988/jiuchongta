@@ -1,41 +1,41 @@
 <template>
-  <div class="modal-overlay" @click.self="close">
-    <div class="modal chart-modal">
-      <h2>📋 牌型速查</h2>
-      <div class="chart-grid">
-        <div v-for="hand in handList" :key="hand.name" class="chart-card" :class="{ upgraded: getUpgrade(hand.name) }">
-          <div class="cc-header">
-            <span class="cc-name">{{ hand.name }}</span>
-            <span v-if="getUpgrade(hand.name)" class="cc-up">+{{ getUpgrade(hand.name).chips || 0 }}/{{ getUpgrade(hand.name).mult || 0 }}</span>
-          </div>
-          <div class="cc-cards">
-            <div v-for="(card, ci) in hand.cards" :key="ci"
-              class="mini-card"
-              :class="{ red: card.s === '♥' || card.s === '♦', black: card.s === '♠' || card.s === '♣', scoring: hand.scoring.includes(ci) }"
-            >
-              <span class="mc-rank">{{ card.r }}</span>
-              <span class="mc-suit">{{ card.s }}</span>
-            </div>
-          </div>
-          <div class="cc-score">
-            <span class="cc-chip"><span class="cc-chip-label">底分</span><span class="cc-chip-val">{{ hand.base[0] }}</span></span>
-            <span class="cc-mult"><span class="cc-mult-label">倍率</span><span class="cc-mult-val">{{ hand.base[1] }}</span></span>
+  <BaseModal size="lg" @close="close">
+    <h2>📋 牌型速查</h2>
+    <div class="chart-grid">
+      <div v-for="hand in handList" :key="hand.name" class="chart-card" :class="{ upgraded: getUpgrade(hand.name) }">
+        <div class="cc-header">
+          <span class="cc-name">{{ hand.name }}</span>
+          <span v-if="getUpgrade(hand.name)" class="cc-up">+{{ getUpgrade(hand.name).chips || 0 }}/{{ getUpgrade(hand.name).mult || 0 }}</span>
+        </div>
+        <div class="cc-cards">
+          <div v-for="(card, ci) in hand.cards" :key="ci"
+            class="mini-card"
+            :class="{ red: card.s === '♥' || card.s === '♦', black: card.s === '♠' || card.s === '♣', scoring: hand.scoring.includes(ci) }"
+          >
+            <span class="mc-rank">{{ card.r }}</span>
+            <span class="mc-suit">{{ card.s }}</span>
           </div>
         </div>
+        <div class="cc-score">
+          <span class="cc-chip"><span class="cc-chip-label">底分</span><span class="cc-chip-val">{{ hand.base[0] }}</span></span>
+          <span class="cc-mult"><span class="cc-mult-label">倍率</span><span class="cc-mult-val">{{ hand.base[1] }}</span></span>
+        </div>
       </div>
-      <div class="chart-legend">
-        <span class="legend-item"><span class="legend-card scoring"></span>计分牌</span>
-        <span class="legend-item"><span class="legend-card"></span>非计分牌</span>
-      </div>
-      <button class="btn btn-play close-btn" @click="close">关闭</button>
     </div>
-  </div>
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-card scoring"></span>计分牌</span>
+      <span class="legend-item"><span class="legend-card"></span>非计分牌</span>
+    </div>
+    <button class="btn btn-play close-btn" @click="close">关闭</button>
+  </BaseModal>
 </template>
 
 <script setup>
+import BaseModal from './common/BaseModal.vue'
 import { HAND_TYPES } from '../data/constants.js'
 
 const props = defineProps({ state: Object })
+const emit = defineEmits(['close'])
 const game = props.state.game
 
 const handList = [
@@ -101,14 +101,12 @@ function getUpgrade(name) {
 }
 
 function close() {
-  props.state.showModal.value = null
+  emit('close')
 }
 </script>
 
 <style scoped>
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modal { background: linear-gradient(145deg, rgba(20,15,40,0.98), rgba(15,10,30,0.98)); border: 1px solid rgba(255,204,34,0.3); border-radius: 16px; padding: 18px; max-width: 720px; width: 94%; max-height: 90vh; overflow-y: auto; text-align: center; box-shadow: 0 0 40px rgba(255,204,34,0.15); }
-h2 { font-size: 18px; color: var(--gold); margin-bottom: 12px; }
+h2 { font-size: 18px; color: var(--gold); margin-bottom: 12px; text-align: center; }
 
 .chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
 .chart-card { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.2s; }
@@ -150,5 +148,5 @@ h2 { font-size: 18px; color: var(--gold); margin-bottom: 12px; }
 .legend-card { width: 14px; height: 20px; border-radius: 3px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.15); display: inline-block; }
 .legend-card.scoring { border-color: var(--gold); background: rgba(255,204,34,0.1); box-shadow: 0 0 6px rgba(255,204,34,0.3); }
 
-.close-btn { padding: 10px 32px; font-size: 14px; }
+.close-btn { padding: 10px 32px; font-size: 14px; display: block; margin: 0 auto; }
 </style>

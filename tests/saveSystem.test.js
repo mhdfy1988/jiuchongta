@@ -1,0 +1,102 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { reactive } from 'vue'
+import { bus } from '../src/utils/eventBus.js'
+import { createSaveSystem } from '../src/systems/saveSystem.js'
+import { SAVE_KEY, SAVE_VERSION } from '../src/data/constants.js'
+
+function makeGame() {
+  return reactive({
+    mode: 'simple',
+    level: 1,
+    money: 5,
+    jokers: [],
+    consumables: [],
+    hand: [],
+    selected: [],
+    playedHandTypes: [],
+    cleared: false,
+  })
+}
+
+describe('SaveSystem', () => {
+  let game, save
+
+  beforeEach(() => {
+    // 清空 localStorage
+    localStorage.clear()
+    game = makeGame()
+    save = createSaveSystem(game, bus)
+  })
+
+  it('初始没有存档', () => {
+    expect(save.hasSave()).toBe(false)
+  })
+
+  it('saveGame 保存后有存档', () => {
+    save.saveGame()
+    expect(save.hasSave()).toBe(true)
+  })
+
+  it('loadGame 能加载已保存的数据', () => {
+    game.money = 100
+    game.level = 5
+    game.playedHandTypes = ['一对', '两对']
+    save.saveGame()
+
+    // 重置 game
+    game.money = 5
+    game.level = 1
+    game.playedHandTypes = []
+
+    const result = save.loadGame()
+    expect(result).toBe(true)
+    expect(game.money).toBe(100)
+    expect(game.level).toBe(5)
+    expect(game.playedHandTypes).toEqual(['一对', '两对'])
+  })
+
+  it('loadGame 没存档返回 false', () => {
+    expect(save.loadGame()).toBe(false)
+  })
+
+  it('版本不匹配的旧存档会被清除', () => {
+    // 手动存一个旧版本
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ __version: 1, money: 999, level: 9 }))
+    const result = save.loadGame()
+    expect(result).toBe(false)
+    expect(save.hasSave()).toBe(false) // 被清掉了
+  })
+
+  it('clearSave 清除存档', () => {
+    save.saveGame()
+    expect(save.hasSave()).toBe(true)
+    save.clearSave()
+    expect(save.hasSave()).toBe(false)
+  })
+
+  it('存档包含版本号', () => {
+    save.saveGame()
+    const raw = JSON.parse(localStorage.getItem(SAVE_KEY))
+    expect(raw.__version).toBe(SAVE_VERSION)
+  })
+
+  it('loadGame 后 selected 被清空', () => {
+    game.selected = [1, 2, 3]
+    save.saveGame()
+    save.loadGame()
+    expect(game.selected).toEqual([])
+  })
+
+  it('saveStats / loadStats 持久化统计数据', () => {
+    const stats = { totalGames: 5, maxLevel: 3 }
+    save.saveStats(stats)
+    const loaded = save.loadStats()
+    expect(loaded.totalGames).toBe(5)
+    expect(loaded.maxLevel).toBe(3)
+  })
+
+  it('loadStats 没数据返回空对象', () => {
+    const loaded = save.loadStats()
+    expect(loaded).toEqual({})
+  })
+})

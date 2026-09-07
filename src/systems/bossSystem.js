@@ -68,6 +68,14 @@ export function createBossSystem(game, bus) {
       : null
   }
 
+  // 进层/复活后确保有点名牌(必须在手牌抽完后调用,否则手牌为空 roll 不出)
+  function ensureCalledOut() {
+    if (game.bossDebuff?.id !== 'called_out') return
+    if (game.calledOutId === null || !game.hand.some(c => c.id === game.calledOutId)) {
+      rollCalledOut()
+    }
+  }
+
   // 出牌/弃牌前的点名校验：返回 true 表示被阻止
   function checkCalledOut() {
     if (game.bossDebuff?.id !== 'called_out') return false
@@ -94,9 +102,6 @@ export function createBossSystem(game, bus) {
     if (debuff.id === 'only_one') {
       if (!game.lockedHandType) game.lockedHandType = resultType
       else if (resultType !== game.lockedHandType) return `唯一: 只能打${game.lockedHandType}!`
-    }
-    if (debuff.id === 'no_repeat' && game.playedHandTypes.includes(resultType)) {
-      return `不许重复: ${resultType}已打过!`
     }
     if (debuff.id === 'lockdown' && debuff.disabledHand) {
       const dh = debuff.disabledHand
@@ -150,6 +155,7 @@ export function createBossSystem(game, bus) {
     recordPlayed,
     rollCalledOut,
     checkCalledOut,
+    ensureCalledOut,
     resetForNewLevel,
     reapplyForRevive,
     isBoss,

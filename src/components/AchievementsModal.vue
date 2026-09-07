@@ -1,33 +1,32 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-box ach-modal">
-      <button class="close-btn" @click="$emit('close')">✕</button>
-      <h2 class="modal-title">🏆 成就</h2>
-      <div class="ach-progress">
-        已解锁 {{ unlockedCount }} / {{ achievements.length }}
-      </div>
-      <div class="ach-grid">
-        <div
-          v-for="ach in achievements"
-          :key="ach.id"
-          class="ach-card"
-          :class="{ unlocked: isUnlocked(ach.id), locked: !isUnlocked(ach.id) }"
-        >
-          <div class="ach-icon">{{ isUnlocked(ach.id) ? ach.icon : '🔒' }}</div>
-          <div class="ach-name">{{ ach.name }}</div>
-          <div class="ach-desc">{{ ach.desc }}</div>
-          <div class="ach-status">
-            <span v-if="isUnlocked(ach.id)" class="ach-done">✓ 已解锁</span>
-            <span v-else class="ach-undone">未解锁</span>
-          </div>
+  <BaseModal size="lg" @close="$emit('close')">
+    <button class="close-btn" @click="$emit('close')">✕</button>
+    <h2 class="modal-title">🏆 成就</h2>
+    <div class="ach-progress">
+      已解锁 {{ unlockedCount }} / {{ achievements.length }}
+    </div>
+    <div class="ach-grid">
+      <div
+        v-for="ach in achievements"
+        :key="ach.id"
+        class="ach-card"
+        :class="{ unlocked: isUnlocked(ach.id), locked: !isUnlocked(ach.id) }"
+      >
+        <div class="ach-icon">{{ isUnlocked(ach.id) ? ach.icon : '🔒' }}</div>
+        <div class="ach-name">{{ ach.name }}</div>
+        <div class="ach-desc">{{ ach.desc }}</div>
+        <div class="ach-status">
+          <span v-if="isUnlocked(ach.id)" class="ach-done">✓ 已解锁</span>
+          <span v-else class="ach-undone">未解锁</span>
         </div>
       </div>
     </div>
-  </div>
+  </BaseModal>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import BaseModal from './common/BaseModal.vue'
 import { ACHIEVEMENTS } from '../data/achievements.js'
 
 const props = defineProps({
@@ -47,16 +46,6 @@ function isUnlocked(id) {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center; z-index: 200;
-}
-.modal-box {
-  position: relative;
-  background: linear-gradient(145deg, rgba(20,15,40,0.98), rgba(15,10,30,0.98));
-  border: 1px solid rgba(255,204,34,0.3); border-radius: 16px; padding: 18px;
-  box-shadow: 0 0 40px rgba(255,204,34,0.15);
-}
 .close-btn {
   position: absolute; top: 10px; right: 12px; width: 28px; height: 28px;
   background: rgba(255,51,102,0.15); border: 1px solid rgba(255,51,102,0.3);
@@ -65,10 +54,6 @@ function isUnlocked(id) {
 }
 .close-btn:hover { background: rgba(255,51,102,0.3); }
 .modal-title { font-size: 18px; color: var(--gold); text-align: center; margin-bottom: 8px; }
-.ach-modal {
-  max-width: 640px; width: 92%; max-height: 80vh;
-  display: flex; flex-direction: column;
-}
 .ach-progress {
   text-align: center; color: var(--gold); font-size: 14px; font-weight: 700;
   margin-bottom: 14px;

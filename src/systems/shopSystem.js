@@ -15,8 +15,8 @@ export function createShopSystem(game, bus) {
 
   // ---------- 生成 ----------
 
-  function generate(isBoss) {
-    game.rerollCount = 0
+  function generate(isBoss, { resetReroll = true } = {}) {
+    if (resetReroll) game.rerollCount = 0
     const count = isBoss ? 3 : 2
     items.value = []
     for (let i = 0; i < count; i++) {
@@ -91,7 +91,7 @@ export function createShopSystem(game, bus) {
     game.money -= cost
     game.rerollCount++
     const isBoss = !!game.bossDebuff
-    generate(isBoss)
+    generate(isBoss, { resetReroll: false })
     SFX.reroll()
     return true
   }

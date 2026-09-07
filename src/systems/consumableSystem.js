@@ -42,8 +42,8 @@ export function createConsumableSystem(game, bus, cardSystem) {
       return 'applied'
     }
 
-    // 塔罗牌进入待选牌状态
-    game.pendingConsumable = idx
+    // 塔罗牌进入待选牌状态（存对象引用，避免下标因卖出错位）
+    game.pendingConsumable = cons
     game.pendingSuit = null
     cardSystem.clearSelection()
     return 'selecting'
@@ -73,9 +73,13 @@ export function createConsumableSystem(game, bus, cardSystem) {
   // 确认使用塔罗牌
   function confirmUse() {
     if (game.pendingConsumable === null) return false
-    const idx = game.pendingConsumable
+    const idx = game.consumables.indexOf(game.pendingConsumable)
+    if (idx < 0) {
+      game.pendingConsumable = null
+      game.pendingSuit = null
+      return false
+    }
     const cons = game.consumables[idx]
-    if (!cons) return false
     const def = getConsumableDef(cons.type, cons.id)
     if (!def) return false
 
@@ -106,8 +110,9 @@ export function createConsumableSystem(game, bus, cardSystem) {
 
   function getPendingDef() {
     if (game.pendingConsumable === null) return null
-    const cons = game.consumables[game.pendingConsumable]
-    if (!cons) return null
+    const idx = game.consumables.indexOf(game.pendingConsumable)
+    if (idx < 0) return null
+    const cons = game.consumables[idx]
     return getConsumableDef(cons.type, cons.id)
   }
 

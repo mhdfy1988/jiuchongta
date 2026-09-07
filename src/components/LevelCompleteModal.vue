@@ -1,15 +1,14 @@
 <template>
-  <div class="modal-overlay" @click.self="state.goToShop()">
-    <div class="modal">
-      <h2>🎉 第{{ game.level }}层过关!</h2>
-      <div class="rewards" v-html="rewardsHTML"></div>
-      <button class="btn btn-play" @click="state.goToShop()">🛒 进入商店</button>
-    </div>
-  </div>
+  <BaseModal size="sm" :close-on-overlay="false">
+    <h2>🎉 第{{ game.level }}层过关!</h2>
+    <div class="rewards" v-html="rewardsHTML"></div>
+    <button class="btn btn-play" @click="state.goToShop()">🛒 进入商店</button>
+  </BaseModal>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import BaseModal from './common/BaseModal.vue'
 import { isBossLevel } from '../data/constants.js'
 
 const props = defineProps({ state: Object })
@@ -36,8 +35,7 @@ const rewardsHTML = computed(() => {
 </script>
 
 <style scoped>
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modal { background: linear-gradient(145deg, rgba(20,15,40,0.98), rgba(15,10,30,0.98)); border: 1px solid rgba(255,204,34,0.3); border-radius: 16px; padding: 24px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 0 40px rgba(255,204,34,0.15); }
-h2 { font-size: 24px; color: var(--gold); margin-bottom: 16px; }
+h2 { font-size: 24px; color: var(--gold); margin-bottom: 16px; text-align: center; }
 .rewards { font-size: 14px; color: var(--text); line-height: 2; margin-bottom: 20px; text-align: left; }
+.btn { display: block; margin: 0 auto; }
 </style>
