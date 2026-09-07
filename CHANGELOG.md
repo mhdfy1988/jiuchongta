@@ -1,5 +1,46 @@
 # 更新日志
 
+## [1.1.0] - 2026-09-08
+
+### 新增
+
+- 计分动画系统（牌型亮相 → 逐条叠加 → 爆燃结算，双击跳过）
+- 卡牌图鉴新增 Boss 标签页，初级/中级/高级三组侧边切换
+- 左侧 Boss debuff 栏显示动态参数（禁用牌型/花色/沉默小丑/已打牌型/点名牌）
+- 游戏结束结算显示本局新解锁成就，区分累计与本局
+- 10 个系统测试文件（boss/shop/joker/level/achievement 等），测试总数 197
+
+### 修复
+
+- 断色 Boss 实际无效果：被禁花色牌不参与牌型判定和计分
+- "不许重复"Boss 改为能打但不计分（原实现直接拦截出牌）
+- 点名 Boss 进层时不立即点名，需出完一手才点名
+- silencedJoker 存档后对象引用失效，导致沉默效果读档后无效
+- 重开游戏消耗牌残留（startGame 未重置 consumables）
+- 卖出确认状态无取消方式：新增取消按钮 + ESC 快捷键
+- DeckViewModal 四花色布局显示为 3 列
+
+### 优化
+
+- 统一小丑牌与消耗牌牌格大小（78×110）
+- 左侧当前分在计分动画结束后才滚动上涨
+- pendingConsumable 从数组索引改为对象引用，避免卖出后下标错位
+- 删除死代码 useScoring.js
+- 架构重构为 systems/ 模块化（card/scoring/boss/level/joker/shop/consumable/save/achievement）
+- EventBus 事件总线解耦各系统
+
+### 界面
+
+- 计分动画爆燃特效：震屏、冲击波、火花粒子、金光闪
+- Boss 图鉴左侧 tab 分组切换，每组 4 个 Boss
+- 游戏结束弹窗新增累计成就进度显示
+
+### 技术
+
+- 新增 ScoreAnimation.vue 组件与 scoreAnim.js 时序工具
+- 新增 .trae.md 项目规则文件与 release-deploy Skill
+- Vitest 测试框架，组件与系统单测
+
 ## [1.0.0] - 2026-08-27
 
 ### 新增

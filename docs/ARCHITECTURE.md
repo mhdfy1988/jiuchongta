@@ -20,15 +20,21 @@
 │  StartScreen / GameScreen / Modals...    │
 ├─────────────────────────────────────────┤
 │           组合式函数层 (Composables)     │
-│   useGameState / useScoring / useAudio   │
+│        useGameState / useAudio           │
+├─────────────────────────────────────────┤
+│             系统层 (Systems)             │
+│  card / scoring / boss / level / joker   │
+│  shop / consumable / save / achievement  │
 ├─────────────────────────────────────────┤
 │               数据层 (Data)              │
 │  jokers / consumables / characters / ... │
 ├─────────────────────────────────────────┤
 │              工具层 (Utils)              │
-│            cardUtils / helpers           │
+│   cardUtils / eventBus / gameData / ...  │
 └─────────────────────────────────────────┘
 ```
+
+各系统之间通过 **EventBus**（`src/utils/eventBus.js`）解耦，系统间不直接调用，改为发布/订阅事件。
 
 ### 组件层
 
@@ -38,8 +44,9 @@
 - `App.vue` — 根组件，管理屏幕切换（start / game）和全局 toast
 - `StartScreen.vue` — 开始界面，角色和模式选择
 - `GameScreen.vue` — 游戏主界面，三栏布局
+- `ScoreAnimation.vue` — 出牌计分动画（牌型亮相 → 逐条叠加 → 爆燃结算）
 - `ShopModal.vue` — 商店弹窗
-- `CardCollectionModal.vue` — 卡牌图鉴（小丑/塔罗/星球分页）
+- `CardCollectionModal.vue` — 卡牌图鉴（小丑/塔罗/星球/Boss 分页）
 - `HandChartModal.vue` — 牌型速查表
 - `DeckViewModal.vue` — 牌堆查看
 - `ConsumableOverlay.vue` — 消耗品使用覆盖层
@@ -47,6 +54,8 @@
 - `GameOverModal.vue` — 游戏结束弹窗
 - `RunStatsModal.vue` — 本局统计
 - `AchievementsModal.vue` — 成就系统
+- `BaseModal.vue` — 模态框基类组件
+- 游戏卡牌组件：`JokerCard.vue` / `ConsumableCard.vue` / `PlayingCard.vue`
 
 ### 组合式函数层
 
@@ -54,7 +63,7 @@
 
 #### useGameState.js
 
-游戏状态管理的核心，包含：
+游戏状态管理的核心，串联各系统，提供响应式状态和操作方法。
 
 - `game` — 游戏核心状态（reactive 对象）
 - `screen` — 当前屏幕（start / game）
@@ -94,23 +103,6 @@
 }
 ```
 
-#### useScoring.js
-
-计分逻辑，纯函数式：
-
-- `evaluateHand(cards, game)` — 评估牌型，返回牌型名称、底分、倍率、计分牌
-- `calculateScore(cards, game)` — 计算最终得分，遍历所有小丑效果
-- `isStraight(ranks)` — 顺子检测
-- `detectHandType(...)` — 牌型识别
-
-计分流程：
-1. 识别牌型（从高到低匹配：五条 → 皇家同花顺 → ... → 高牌）
-2. 计算基础底分和基础倍率
-3. 应用牌型升级加成
-4. 遍历所有小丑，累加底分和倍率
-5. 应用乘倍率
-6. 返回最终得分和详细明细
-
 #### useAudio.js
 
 音效系统，使用 Web Audio API 合成音效：
@@ -121,6 +113,40 @@
 - `playCoin()` — 金币音效
 - `playWin()` — 过关音效
 - `playError()` — 错误音效
+- `score()` / `jokerTrigger()` 等 — 计分动画配套音效
+
+### 系统层 (Systems)
+
+游戏业务逻辑按领域拆分为独立系统模块，每个系统专注单一职责，通过 EventBus 通信：
+
+| 系统 | 文件 | 职责 |
+|------|------|------|
+| 卡牌系统 | `cardSystem.js` | 牌堆创建、洗牌、抽牌、手牌管理 |
+| 计分系统 | `scoringSystem.js` | 牌型识别、底分/倍率计算、小丑效果触发、breakdown 明细 |
+| Boss 系统 | `bossSystem.js` | Boss 选择、减益应用与重置、debuff 参数管理 |
+| 关卡系统 | `levelSystem.js` | 关卡进度、目标分计算、胜负判定、利息奖励 |
+| 小丑系统 | `jokerSystem.js` | 小丑添加/移除/卖出、效果注册 |
+| 商店系统 | `shopSystem.js` | 商品生成、刷新、购买、卖出 |
+| 消耗品系统 | `consumableSystem.js` | 消耗品使用、塔罗/星球效果 |
+| 存档系统 | `saveSystem.js` | 序列化/反序列化、版本检查、localStorage 读写 |
+| 成就系统 | `achievementSystem.js` | 成就检测、解锁、统计 |
+
+### EventBus 事件总线
+
+`src/utils/eventBus.js` 提供发布/订阅机制，解耦各系统：
+
+- `bus.on(event, handler)` — 订阅事件
+- `bus.emit(event, payload)` — 发布事件
+- `bus.off(event, handler)` — 取消订阅
+
+核心事件（`EVENTS` 常量）：
+- `HAND_PLAYED` — 出牌完成
+- `LEVEL_COMPLETE` — 过关
+- `LEVEL_FAILED` — 失败
+- `JOKER_ADDED` / `JOKER_REMOVED` — 小丑增减
+- `SHOP_ITEM_BOUGHT` — 商店购买
+- `ACHIEVEMENT_UNLOCKED` — 成就解锁
+- `GAME_OVER` — 游戏结束
 
 ### 数据层
 
@@ -132,7 +158,7 @@
 | `jokers.js` | 48 张小丑牌定义（id、名称、图标、稀有度、价格、类型、效果函数） |
 | `consumables.js` | 8 张塔罗牌 + 9 张星球牌定义 |
 | `characters.js` | 3 个角色 + 3 种模式定义 |
-| `bosses.js` | Boss 减益效果定义（弱/中/强三档） |
+| `bosses.js` | 12 个 Boss 减益效果定义（初级/中级/高级各 4 个） |
 | `achievements.js` | 10 个成就定义及条件函数 |
 
 小丑效果通过函数实现，接收上下文对象 `ctx`：
@@ -152,12 +178,13 @@
 
 ### 工具层
 
-`cardUtils.js` 提供卡牌操作工具：
-
-- `createDeck()` — 创建一副 52 张标准扑克
-- `shuffle(array)` — Fisher-Yates 洗牌算法
-- `drawCards(game, count)` — 从牌堆抽牌到手牌
-- `cardRankValue(rank)` — 获取点数数值
+| 文件 | 职责 |
+|------|------|
+| `cardUtils.js` | 卡牌操作：创建牌堆、洗牌、抽牌、点数数值转换 |
+| `eventBus.js` | 事件总线，发布/订阅模式解耦各系统 |
+| `gameData.js` | 游戏数据查询工具（小丑/消耗品按 id 查找等） |
+| `scoreAnim.js` | 计分动画时序控制 |
+| `storage.js` | localStorage 封装，带版本检查 |
 
 ## 响应式数据流
 
@@ -185,18 +212,14 @@
 
 ## 部署流程
 
-使用 GitHub Actions 自动部署到 GitHub Pages：
+部署到 GitHub Pages，使用 `gh-pages` 工具：
 
-1. 推送到 `main` 分支
-2. GitHub Action 运行 `npm run build`
-3. 将 `dist` 目录推送到 `gh-pages` 分支
-4. GitHub Pages 自动生效
-
-也可手动部署：
 ```bash
 npm run build
-npx gh-pages -d dist -b gh-pages
+npx gh-pages -d dist
 ```
+
+构建产物在 `dist/` 目录，推送到 `gh-pages` 分支后 GitHub Pages 自动生效。
 
 ## 性能优化
 
