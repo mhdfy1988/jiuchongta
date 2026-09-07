@@ -104,8 +104,8 @@
         <div
           v-for="(card, idx) in game.hand" :key="card.id"
           class="playing-card"
-          :class="{ red: card.suit === '♥' || card.suit === '♦', black: card.suit === '♠' || card.suit === '♣', selected: game.selected.includes(idx), 'called-out': game.calledOutIndex === idx }"
-          @click="state.selectCard(idx)"
+          :class="{ red: card.suit === '♥' || card.suit === '♦', black: card.suit === '♠' || card.suit === '♣', selected: game.selected.includes(card.id), 'called-out': game.calledOutId === card.id }"
+          @click="state.selectCard(card.id)"
         >
           <div class="pc-corner top"><span class="pc-rank">{{ card.rank }}</span><span class="pc-suit">{{ card.suit }}</span></div>
           <div class="pc-center">{{ card.suit }}</div>
@@ -221,7 +221,7 @@ const progressPercent = computed(() => {
 
 const previewHand = computed(() => {
   if (game.selected.length === 0) return null
-  const cards = game.selected.map(i => game.hand[i])
+  const cards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
   const result = props.state.evaluateHand(cards, game)
   return { type: result.type, chips: result.chips, mult: result.mult }
 })

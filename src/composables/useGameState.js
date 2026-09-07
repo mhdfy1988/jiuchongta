@@ -8,7 +8,7 @@ import { TAROTS, PLANETS, getConsumableDef } from '../data/consumables.js'
 import { BOSS_DEBUFFS } from '../data/bosses.js'
 import { CHARACTERS, MODES } from '../data/characters.js'
 import { ACHIEVEMENTS } from '../data/achievements.js'
-import { createDeck, shuffle, drawCards } from '../utils/cardUtils.js'
+import { createDeck, shuffle, drawCards, sortByRank as sortHandByRank, sortBySuit as sortHandBySuit } from '../utils/cardUtils.js'
 import { useScoring } from './useScoring.js'
 import { useAudio } from './useAudio.js'
 
@@ -28,7 +28,7 @@ export function useGameState() {
     totalScore: 0, maxSingleScore: 0,
     animating: false, consumables: [], handUpgrades: {},
     pendingConsumable: null, pendingSuit: null, lastPlayedHand: null,
-    calledOutIndex: null, cleared: false,
+    calledOutId: null, cleared: false,
   })
 
   const stats = ref(loadStats())
@@ -78,27 +78,26 @@ export function useGameState() {
       lives: selectedMode.value === 'simple' ? 1 : 0,
       totalScore: 0, maxSingleScore: 0, animating: false,
       consumables: [], handUpgrades: {},
-      pendingConsumable: null, pendingSuit: null, lastPlayedHand: null, calledOutIndex: null,
+      pendingConsumable: null, pendingSuit: null, lastPlayedHand: null, calledOutId: null,
       cleared: false,
     })
 
     applyBossDebuff()
     drawCards(game, game.handSize)
-    if (game.bossDebuff?.id === 'called_out' && game.hand.length > 0) {
-      game.calledOutIndex = Math.floor(Math.random() * game.hand.length)
-    }
+    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
     screen.value = 'game'
     const modeName = game.mode === 'simple' ? '简单' : game.mode === 'hard' ? '困难' : '无尽'
     showToast(`第1层 ${modeName}模式`)
     saveGame()
   }
 
-  function applyBossDebuffEffects() {
+  // scaleTarget: high_wall 目标分倍率只在进入 Boss 层时乘一次，复活时跳过
+  function applyBossDebuffEffects({ scaleTarget = true } = {}) {
     if (!game.bossDebuff) return
     if (game.bossDebuff.id === 'shackles') game.handSize = 7
     if (game.bossDebuff.id === 'no_discard') game.discardsLeft = 0
     if (game.bossDebuff.id === 'pinhole') game.handsLeft = 1
-    if (game.bossDebuff.id === 'high_wall') game.targetScore = Math.floor(game.targetScore * 1.5)
+    if (scaleTarget && game.bossDebuff.id === 'high_wall') game.targetScore = Math.floor(game.targetScore * 1.5)
     if (game.bossDebuff.id === 'color_cut' && !game.bossDebuff.disabledSuit) {
       game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
     }
@@ -110,6 +109,23 @@ export function useGameState() {
       const permanent = game.jokers.filter(j => !j.data?.locked)
       if (permanent.length > 0) game.silencedJoker = permanent[Math.floor(Math.random() * permanent.length)]
     }
+  }
+
+  function rollCalledOut() {
+    game.calledOutId = game.hand.length > 0
+      ? game.hand[Math.floor(Math.random() * game.hand.length)].id
+      : null
+  }
+
+  // 点名 Boss 校验：返回 true 表示本次出牌/弃牌被阻止
+  function blockedByCalledOut() {
+    if (game.bossDebuff?.id !== 'called_out') return false
+    if (game.calledOutId !== null && !game.hand.some(c => c.id === game.calledOutId)) rollCalledOut()
+    if (game.calledOutId !== null && !game.selected.includes(game.calledOutId)) {
+      showToast('点名: 必须打出或弃掉指定的牌!')
+      return true
+    }
+    return false
   }
 
   function applyBossDebuff() {
@@ -124,24 +140,25 @@ export function useGameState() {
     applyBossDebuffEffects()
   }
 
-  function selectCard(index) {
+  // cardId: 卡牌唯一 id（selected 存 id，排序/删牌后不失效）
+  function selectCard(cardId) {
     initAudio()
     if (game.pendingConsumable !== null && game.pendingConsumable !== undefined) {
       const cons = game.consumables[game.pendingConsumable]
       const def = cons ? TAROTS.find(t => t.id === cons.id) : null
       const maxSel = def ? def.selectCount : 1
-      const idx = game.selected.indexOf(index)
+      const idx = game.selected.indexOf(cardId)
       if (idx >= 0) { game.selected.splice(idx, 1); SFX.deselect() }
-      else if (game.selected.length < maxSel) { game.selected.push(index); SFX.select() }
+      else if (game.selected.length < maxSel) { game.selected.push(cardId); SFX.select() }
       else { showToast(`最多选择 ${maxSel} 张`); return }
       if (def && def.id === 'the_world' && game.selected.length >= def.selectCount) {
         game.pendingSuit = null
       }
       return
     }
-    const idx = game.selected.indexOf(index)
+    const idx = game.selected.indexOf(cardId)
     if (idx >= 0) { game.selected.splice(idx, 1); SFX.deselect() }
-    else if (game.selected.length < 5) { game.selected.push(index); SFX.select() }
+    else if (game.selected.length < 5) { game.selected.push(cardId); SFX.select() }
   }
 
   function playHand() {
@@ -151,16 +168,9 @@ export function useGameState() {
     if (game.handsLeft <= 0) { showToast('没有出牌次数了!'); return }
     if (game.bossDebuff?.id === 'ocd' && game.selected.length < 5) { showToast('强迫症: 必须打出5张!'); return }
 
-    if (game.bossDebuff?.id === 'called_out' && game.calledOutIndex !== null) {
-      if (game.calledOutIndex >= game.hand.length) {
-        game.calledOutIndex = game.hand.length > 0 ? Math.floor(Math.random() * game.hand.length) : null
-      }
-      if (game.calledOutIndex !== null && !game.selected.includes(game.calledOutIndex)) {
-        showToast('点名: 必须打出或弃掉指定的牌!'); return
-      }
-    }
+    if (blockedByCalledOut()) return
 
-    const selectedCards = game.selected.map(i => game.hand[i])
+    const selectedCards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
     const result = calculateScore(selectedCards, game)
 
     if (game.bossDebuff?.id === 'only_one') {
@@ -233,13 +243,11 @@ export function useGameState() {
     }
 
     const selSet = new Set(game.selected)
-    game.hand = game.hand.filter((_, i) => !selSet.has(i))
+    game.hand = game.hand.filter(c => !selSet.has(c.id))
     game.selected = []
     drawCards(game, selectedCards.length)
 
-    if (game.bossDebuff?.id === 'called_out') {
-      game.calledOutIndex = game.hand.length > 0 ? Math.floor(Math.random() * game.hand.length) : null
-    }
+    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
 
     setTimeout(() => {
       game.animating = false
@@ -256,26 +264,17 @@ export function useGameState() {
     if (game.selected.length === 0) { showToast('请选择要弃的牌'); return }
     if (game.discardsLeft <= 0) { showToast('没有换牌次数了!'); return }
 
-    if (game.bossDebuff?.id === 'called_out' && game.calledOutIndex !== null) {
-      if (game.calledOutIndex >= game.hand.length) {
-        game.calledOutIndex = game.hand.length > 0 ? Math.floor(Math.random() * game.hand.length) : null
-      }
-      if (game.calledOutIndex !== null && !game.selected.includes(game.calledOutIndex)) {
-        showToast('点名: 必须打出或弃掉指定的牌!'); return
-      }
-    }
+    if (blockedByCalledOut()) return
 
     const selSet = new Set(game.selected)
-    const discarded = game.selected.map(i => game.hand[i])
-    game.hand = game.hand.filter((_, i) => !selSet.has(i))
+    const discarded = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
+    game.hand = game.hand.filter(c => !selSet.has(c.id))
     game.selected = []
     game.discardsLeft--
     drawCards(game, discarded.length)
     SFX.discard()
 
-    if (game.bossDebuff?.id === 'called_out') {
-      game.calledOutIndex = game.hand.length > 0 ? Math.floor(Math.random() * game.hand.length) : null
-    }
+    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
 
     const discardEval = evaluateHand(discarded, game)
     game.jokers.forEach(joker => {
@@ -323,7 +322,7 @@ export function useGameState() {
     game.silencedJoker = null
     game.lockedHandType = null
     game.playedHandTypes = []
-    game.calledOutIndex = null
+    game.calledOutId = null
     game.levelStartMoney = game.money
     game.targetScore = getTargetScore(game.level, game.mode)
     game.deck = shuffle(createDeck())
@@ -331,9 +330,7 @@ export function useGameState() {
     game.selected = []
     applyBossDebuff()
     drawCards(game, game.handSize)
-    if (game.bossDebuff?.id === 'called_out' && game.hand.length > 0) {
-      game.calledOutIndex = Math.floor(Math.random() * game.hand.length)
-    }
+    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
 
     if (game.mode === 'endless') {
       stats.value.maxEndless = Math.max(stats.value.maxEndless || 0, game.level)
@@ -358,17 +355,11 @@ export function useGameState() {
       game.deck = shuffle(createDeck())
       game.hand = []
       game.selected = []
-      game.calledOutIndex = null
-      // 重新应用 Boss debuff 效果（除了 high_wall，避免目标分重复乘算）
-      if (game.bossDebuff) {
-        if (game.bossDebuff.id === 'shackles') game.handSize = 7
-        if (game.bossDebuff.id === 'no_discard') game.discardsLeft = 0
-        if (game.bossDebuff.id === 'pinhole') game.handsLeft = 1
-      }
+      game.calledOutId = null
+      // 重新应用 Boss debuff 效果（跳过 high_wall，避免目标分重复乘算）
+      applyBossDebuffEffects({ scaleTarget: false })
       drawCards(game, game.handSize)
-      if (game.bossDebuff?.id === 'called_out' && game.hand.length > 0) {
-        game.calledOutIndex = Math.floor(Math.random() * game.hand.length)
-      }
+      if (game.bossDebuff?.id === 'called_out') rollCalledOut()
       saveGame()
       return
     }
@@ -540,13 +531,13 @@ export function useGameState() {
     const def = TAROTS.find(t => t.id === cons.id)
     if (!def) return
 
-    const selectedCards = game.selected.map(i => game.hand[i])
+    const selectedCards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
     if (selectedCards.length < def.selectCount) { showToast(`需要选择 ${def.selectCount} 张手牌`); return }
 
     const result = def.use(game, selectedCards)
     if (result === 'destroy') {
-      const idx = game.selected[0]
-      game.hand.splice(idx, 1)
+      const idx = game.hand.findIndex(c => c.id === game.selected[0])
+      if (idx >= 0) game.hand.splice(idx, 1)
       game.selected = []
     } else if (result === 'choose_suit') {
       if (!game.pendingSuit) { showToast('请先选择花色'); return }
@@ -604,6 +595,11 @@ export function useGameState() {
       if (!data) return false
       Object.assign(game, data)
       game.playedHandTypes = data.playedHandTypes || []
+      // 读档后重置选中状态；兼容旧版索引制存档，点名 id 缺失时重roll
+      game.selected = []
+      if (game.bossDebuff?.id === 'called_out') {
+        if (typeof game.calledOutId !== 'number' || !game.hand.some(c => c.id === game.calledOutId)) rollCalledOut()
+      }
       return true
     } catch(e) { return false }
   }
@@ -626,25 +622,11 @@ export function useGameState() {
   }
 
   function sortByRank() {
-    const order = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
-    const calledCard = game.calledOutIndex !== null ? game.hand[game.calledOutIndex] : null
-    const selectedCards = game.selected.map(i => game.hand[i])
-    game.hand.sort((a, b) => order[a.rank] - order[b.rank])
-    if (calledCard) game.calledOutIndex = game.hand.indexOf(calledCard)
-    game.selected = selectedCards.map(c => game.hand.indexOf(c)).filter(i => i !== -1)
+    game.hand = sortHandByRank(game.hand)
   }
 
   function sortBySuit() {
-    const order = { '♠':0, '♥':1, '♣':2, '♦':3 }
-    const calledCard = game.calledOutIndex !== null ? game.hand[game.calledOutIndex] : null
-    const selectedCards = game.selected.map(i => game.hand[i])
-    game.hand.sort((a, b) => {
-      if (order[a.suit] !== order[b.suit]) return order[a.suit] - order[b.suit]
-      const ra = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
-      return ra[a.rank] - ra[b.rank]
-    })
-    if (calledCard) game.calledOutIndex = game.hand.indexOf(calledCard)
-    game.selected = selectedCards.map(c => game.hand.indexOf(c)).filter(i => i !== -1)
+    game.hand = sortHandBySuit(game.hand)
   }
 
   return {

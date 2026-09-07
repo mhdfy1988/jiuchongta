@@ -126,6 +126,14 @@ export function useScoring() {
     const splash = game.jokers.find(j => j.id === 'splash')
     if (splash) scoringCards = [...cards]
 
+    // Boss 无效化必须在累加底分之前过滤，否则"不计分"不生效
+    if (game.bossDebuff?.id === 'seal_king') {
+      scoringCards = scoringCards.filter(c => !FACE_CARDS.includes(c.rank))
+    }
+    if (game.bossDebuff?.id === 'color_cut' && game.bossDebuff.disabledSuit) {
+      scoringCards = scoringCards.filter(c => c.suit !== game.bossDebuff.disabledSuit)
+    }
+
     scoringCards.forEach(card => {
       chips += RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0)
     })
@@ -140,13 +148,6 @@ export function useScoring() {
       for (let t = 0; t < extraTriggers[idx]; t++) {
         chips += RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0)
       }
-    }
-
-    if (game.bossDebuff?.id === 'seal_king') {
-      scoringCards = scoringCards.filter(c => !FACE_CARDS.includes(c.rank))
-    }
-    if (game.bossDebuff?.id === 'color_cut' && game.bossDebuff.disabledSuit) {
-      scoringCards = scoringCards.filter(c => c.suit !== game.bossDebuff.disabledSuit)
     }
 
     const upgrade = game.handUpgrades[evalResult.type]
@@ -189,7 +190,7 @@ export function useScoring() {
       breakdown.push({ label: log.name, chips: log.chips || 0, mult: log.mult || 0 })
     })
 
-    return { type: evalResult.type, chips, mult, total, scoringCards: evalResult.scoringCards, triggerLog, breakdown }
+    return { type: evalResult.type, chips, mult, total, scoringCards, triggerLog, breakdown }
   }
 
   return { evaluateHand, findStraight, calculateScore }
