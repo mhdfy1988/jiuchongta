@@ -1,21 +1,29 @@
 import { reactive, ref } from 'vue'
-import {
-  SUITS, RANKS, RANK_VALUES, HAND_TYPES, SAVE_KEY,
-  isBossLevel, getTargetScore, getBossPool
-} from '../data/constants.js'
-import { JOKERS } from '../data/jokers.js'
-import { TAROTS, PLANETS, getConsumableDef } from '../data/consumables.js'
-import { BOSS_DEBUFFS } from '../data/bosses.js'
+import { bus, EVENTS } from '../utils/eventBus.js'
+import { SAVE_KEY } from '../data/constants.js'
 import { CHARACTERS, MODES } from '../data/characters.js'
-import { ACHIEVEMENTS } from '../data/achievements.js'
-import { createDeck, shuffle, drawCards, sortByRank as sortHandByRank, sortBySuit as sortHandBySuit } from '../utils/cardUtils.js'
-import { useScoring } from './useScoring.js'
 import { useAudio } from './useAudio.js'
 
-const { evaluateHand, calculateScore } = useScoring()
+// 系统
+import { createCardSystem } from '../systems/cardSystem.js'
+import { createScoringSystem } from '../systems/scoringSystem.js'
+import { createBossSystem } from '../systems/bossSystem.js'
+import { createLevelSystem } from '../systems/levelSystem.js'
+import { createJokerSystem } from '../systems/jokerSystem.js'
+import { createShopSystem } from '../systems/shopSystem.js'
+import { createConsumableSystem } from '../systems/consumableSystem.js'
+import { createSaveSystem } from '../systems/saveSystem.js'
+import { createAchievementSystem } from '../systems/achievementSystem.js'
+
 const { SFX, initAudio } = useAudio()
 
+/**
+ * 游戏状态聚合层
+ * 自身不包含业务逻辑，只组装各系统并协调它们的调用顺序
+ * 对外提供统一的 API 给组件使用
+ */
 export function useGameState() {
+  // ========== 共享状态 ==========
   const game = reactive({
     mode: null, character: null, level: 1,
     deck: [], hand: [], selected: [], jokers: [],
@@ -31,27 +39,27 @@ export function useGameState() {
     calledOutId: null, cleared: false,
   })
 
-  const stats = ref(loadStats())
+  const stats = ref({})
   const selectedChar = ref(null)
   const selectedMode = ref(null)
-  const shopItems = ref([])
-  const shopConsumables = ref([])
   const screen = ref('start') // 'start' | 'game'
-  const showModal = ref(null) // null | 'levelcomplete' | 'shop' | 'gameover' | 'handchart' | 'deckview' | 'runstats'
+  const showModal = ref(null)
   const lastScoreResult = ref(null)
   const toasts = ref([])
   const jokerBonusPopups = ref([])
-  const hasSaveData = ref(false)
 
-  function updateSaveFlag() {
-    try { hasSaveData.value = !!localStorage.getItem(SAVE_KEY) } catch(e) { hasSaveData.value = false }
-  }
-  updateSaveFlag()
+  // ========== 系统实例 ==========
+  const cards = createCardSystem(game, bus)
+  const scoring = createScoringSystem()
+  const boss = createBossSystem(game, bus)
+  const level = createLevelSystem(game, bus)
+  const jokers = createJokerSystem(game, bus)
+  const shop = createShopSystem(game, bus)
+  const consumables = createConsumableSystem(game, bus, cards)
+  const saveSys = createSaveSystem(game, bus)
+  const achievements = createAchievementSystem(stats, (s) => saveSys.saveStats(s), bus)
 
-  function loadStats() {
-    try { return JSON.parse(localStorage.getItem('pokerRoguelikeStats')) || {} } catch(e) { return {} }
-  }
-  function saveStats() { localStorage.setItem('pokerRoguelikeStats', JSON.stringify(stats.value)) }
+  // ========== UI 辅助 ==========
 
   function showToast(msg, isAchievement = false) {
     const id = Date.now() + Math.random()
@@ -59,165 +67,133 @@ export function useGameState() {
     setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id) }, 3000)
   }
 
+  // ========== 事件监听（系统间协调） ==========
+
+  bus.on(EVENTS.LEVEL_WON, () => {
+    showModal.value = 'levelcomplete'
+    saveSys.saveGame()
+  })
+
+  bus.on(EVENTS.GAME_OVER, () => {
+    achievements.recordMax('maxScore', game.totalScore)
+    showModal.value = 'gameover'
+    saveSys.clearSave()
+  })
+
+  bus.on(EVENTS.GAME_CLEAR, () => {
+    if (game.mode === 'hard') {
+      const s = stats.value
+      s.hardClears = (s.hardClears || 0) + 1
+      if (!s.unlockedChars?.includes('straight')) {
+        s.unlockedChars = [...(s.unlockedChars || []), 'straight']
+        showToast('解锁角色: 顺子牌手!', true)
+      }
+    }
+    achievements.recordMax('maxScore', game.totalScore)
+    if (!stats.value.unlockedEndless) {
+      stats.value.unlockedEndless = true
+      showToast('解锁无尽模式!', true)
+    }
+    saveSys.clearSave()
+    showModal.value = 'gameover'
+  })
+
+  bus.on(EVENTS.REVIVED, ({ lives }) => {
+    showToast(`复活! 剩余复活次数: ${lives}`)
+    boss.reapplyForRevive()
+    cards.initDeck()
+    cards.draw(game.handSize)
+    saveSys.saveGame()
+  })
+
+  bus.on(EVENTS.ITEM_BOUGHT, ({ type }) => {
+    if (type === 'joker') {
+      if (!stats.value.firstBuy) { stats.value.firstBuy = true; achievements.checkAll() }
+    }
+    saveSys.saveGame()
+  })
+
+  bus.on(EVENTS.ACHIEVEMENT_UNLOCKED, ({ achievement }) => {
+    showToast(`🏆 成就解锁: ${achievement.name}!`, true)
+  })
+
+  // ========== 游戏流程 API ==========
+
   function startGame() {
     const charDef = CHARACTERS.find(c => c.id === selectedChar.value)
-    const startJokers = []
-    if (charDef.startJoker) {
-      startJokers.push({ id: charDef.startJoker, data: { stacks: 0, locked: true } })
+
+    // 重置状态
+    game.money = 5
+    game.handTypeCounts = {}
+    game.cardEnhancements = {}
+    game.handUpgrades = {}
+    game.rerollCount = 0
+
+    level.startRun(selectedMode.value, selectedChar.value)
+    boss.resetForNewLevel()
+
+    // 初始小丑
+    game.jokers = []
+    if (charDef?.startJoker) {
+      jokers.addJoker(charDef.startJoker, { locked: true })
     }
 
-    Object.assign(game, {
-      mode: selectedMode.value, character: selectedChar.value, level: 1,
-      deck: shuffle(createDeck()), hand: [], selected: [], jokers: startJokers,
-      money: 5, handsLeft: 4, discardsLeft: 4, handSize: 8,
-      levelScore: 0, targetScore: getTargetScore(1, selectedMode.value),
-      bossDebuff: null, silencedJoker: null,
-      handTypeCounts: {}, cardEnhancements: {},
-      lockedHandType: null, playedHandTypes: [],
-      rerollCount: 0, levelStartMoney: 5,
-      lives: selectedMode.value === 'simple' ? 1 : 0,
-      totalScore: 0, maxSingleScore: 0, animating: false,
-      consumables: [], handUpgrades: {},
-      pendingConsumable: null, pendingSuit: null, lastPlayedHand: null, calledOutId: null,
-      cleared: false,
-    })
+    cards.initDeck()
+    boss.pickBoss()
+    cards.draw(game.handSize)
 
-    applyBossDebuff()
-    drawCards(game, game.handSize)
-    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
     screen.value = 'game'
     const modeName = game.mode === 'simple' ? '简单' : game.mode === 'hard' ? '困难' : '无尽'
     showToast(`第1层 ${modeName}模式`)
-    saveGame()
+    saveSys.saveGame()
   }
 
-  // scaleTarget: high_wall 目标分倍率只在进入 Boss 层时乘一次，复活时跳过
-  function applyBossDebuffEffects({ scaleTarget = true } = {}) {
-    if (!game.bossDebuff) return
-    if (game.bossDebuff.id === 'shackles') game.handSize = 7
-    if (game.bossDebuff.id === 'no_discard') game.discardsLeft = 0
-    if (game.bossDebuff.id === 'pinhole') game.handsLeft = 1
-    if (scaleTarget && game.bossDebuff.id === 'high_wall') game.targetScore = Math.floor(game.targetScore * 1.5)
-    if (game.bossDebuff.id === 'color_cut' && !game.bossDebuff.disabledSuit) {
-      game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
-    }
-    if (game.bossDebuff.id === 'lockdown' && !game.bossDebuff.disabledHand) {
-      const types = ['同花顺','同花','顺子','葫芦','四条','一对']
-      game.bossDebuff.disabledHand = types[Math.floor(Math.random() * types.length)]
-    }
-    if (game.bossDebuff.id === 'silence' && game.jokers.length > 0 && !game.silencedJoker) {
-      const permanent = game.jokers.filter(j => !j.data?.locked)
-      if (permanent.length > 0) game.silencedJoker = permanent[Math.floor(Math.random() * permanent.length)]
-    }
-  }
-
-  function rollCalledOut() {
-    game.calledOutId = game.hand.length > 0
-      ? game.hand[Math.floor(Math.random() * game.hand.length)].id
-      : null
-  }
-
-  // 点名 Boss 校验：返回 true 表示本次出牌/弃牌被阻止
-  function blockedByCalledOut() {
-    if (game.bossDebuff?.id !== 'called_out') return false
-    if (game.calledOutId !== null && !game.hand.some(c => c.id === game.calledOutId)) rollCalledOut()
-    if (game.calledOutId !== null && !game.selected.includes(game.calledOutId)) {
-      showToast('点名: 必须打出或弃掉指定的牌!')
-      return true
-    }
-    return false
-  }
-
-  function applyBossDebuff() {
-    if (!isBossLevel(game.level) && game.mode !== 'endless') { game.bossDebuff = null; return }
-    if (game.mode === 'endless' && !isBossLevel(((game.level - 1) % 9) + 1)) { game.bossDebuff = null; return }
-
-    const poolName = game.mode === 'endless' ? getBossPool(((game.level - 1) % 9) + 1) : getBossPool(game.level)
-    const pool = BOSS_DEBUFFS[poolName]
-    game.bossDebuff = { ...pool[Math.floor(Math.random() * pool.length)] }
-    game.silencedJoker = null
-
-    applyBossDebuffEffects()
-  }
-
-  // cardId: 卡牌唯一 id（selected 存 id，排序/删牌后不失效）
   function selectCard(cardId) {
     initAudio()
-    if (game.pendingConsumable !== null && game.pendingConsumable !== undefined) {
-      const cons = game.consumables[game.pendingConsumable]
-      const def = cons ? TAROTS.find(t => t.id === cons.id) : null
+    if (consumables.isPending()) {
+      const def = consumables.getPendingDef()
       const maxSel = def ? def.selectCount : 1
-      const idx = game.selected.indexOf(cardId)
-      if (idx >= 0) { game.selected.splice(idx, 1); SFX.deselect() }
-      else if (game.selected.length < maxSel) { game.selected.push(cardId); SFX.select() }
-      else { showToast(`最多选择 ${maxSel} 张`); return }
+      const ok = cards.selectCard(cardId, { maxSelect: maxSel })
+      if (!ok && game.selected.length >= maxSel) {
+        showToast(`最多选择 ${maxSel} 张`)
+      }
       if (def && def.id === 'the_world' && game.selected.length >= def.selectCount) {
         game.pendingSuit = null
       }
       return
     }
-    const idx = game.selected.indexOf(cardId)
-    if (idx >= 0) { game.selected.splice(idx, 1); SFX.deselect() }
-    else if (game.selected.length < 5) { game.selected.push(cardId); SFX.select() }
+    cards.selectCard(cardId, { maxSelect: 5 })
   }
 
   function playHand() {
     if (game.animating) return
-    if (game.pendingConsumable !== null) { showToast('请先完成消耗品使用'); return }
+    if (consumables.isPending()) { showToast('请先完成消耗品使用'); return }
     if (game.selected.length === 0) { showToast('请选择至少1张牌'); return }
     if (game.handsLeft <= 0) { showToast('没有出牌次数了!'); return }
-    if (game.bossDebuff?.id === 'ocd' && game.selected.length < 5) { showToast('强迫症: 必须打出5张!'); return }
 
-    if (blockedByCalledOut()) return
+    const selectedCards = cards.getSelectedCards()
+    const result = scoring.calculateScore(selectedCards, game)
 
-    const selectedCards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
-    const result = calculateScore(selectedCards, game)
+    // Boss 校验
+    const blockedMsg = boss.validatePlay(result.type)
+    if (blockedMsg) { showToast(blockedMsg); return }
 
-    if (game.bossDebuff?.id === 'only_one') {
-      if (!game.lockedHandType) game.lockedHandType = result.type
-      else if (result.type !== game.lockedHandType) { showToast(`唯一: 只能打${game.lockedHandType}!`); return }
-    }
-    if (game.bossDebuff?.id === 'no_repeat' && game.playedHandTypes.includes(result.type)) {
-      showToast(`不许重复: ${result.type}已打过!`); return
-    }
-    if (game.bossDebuff?.id === 'lockdown' && game.bossDebuff.disabledHand) {
-      const dh = game.bossDebuff.disabledHand
-      if (result.type === dh || (dh === '一对' && result.type === '两对') || (dh === '同花顺' && result.type === '皇家同花顺')) {
-        showToast(`封锁: ${dh}被禁用!`); return
-      }
-    }
+    level.recordScore(result)
+    boss.recordPlayed(result.type)
 
-    game.handsLeft--
-    game.levelScore += result.total
-    game.totalScore += result.total
-    game.maxSingleScore = Math.max(game.maxSingleScore, result.total)
-    game.lastPlayedHand = {
-      type: result.type,
-      chips: result.chips,
-      mult: result.mult,
-      total: result.total,
-      cards: selectedCards.map(c => ({ rank: c.rank, suit: c.suit })),
-      breakdown: result.breakdown
-    }
-    SFX.play()
-
-    game.handTypeCounts[result.type] = (game.handTypeCounts[result.type] || 0) + 1
-    game.playedHandTypes = [...game.playedHandTypes, result.type]
-
-    if (result.type === '同花顺' && !stats.value.flushStraight) { stats.value.flushStraight = true; checkAchievements() }
-    if (result.type === '皇家同花顺' && !stats.value.royalFlush) { stats.value.royalFlush = true; checkAchievements() }
-    if (result.type === '五条' && !stats.value.fiveKind) { stats.value.fiveKind = true; checkAchievements() }
-    stats.value.maxSingleScore = Math.max(stats.value.maxSingleScore || 0, result.total)
-    saveStats()
+    // 成就检测
+    if (result.type === '同花顺' && !stats.value.flushStraight) { stats.value.flushStraight = true; achievements.checkAll() }
+    if (result.type === '皇家同花顺' && !stats.value.royalFlush) { stats.value.royalFlush = true; achievements.checkAll() }
+    if (result.type === '五条' && !stats.value.fiveKind) { stats.value.fiveKind = true; achievements.checkAll() }
+    achievements.recordMax('maxSingleScore', result.total)
 
     game.animating = true
     lastScoreResult.value = result
 
-    game.jokers.forEach(joker => {
-      const def = JOKERS.find(j => j.id === joker.id)
-      if (def?.onPlay) def.onPlay(joker, result.type)
-    })
+    // 小丑 onPlay 触发
+    jokers.triggerOnPlay(result.type)
 
+    // 小丑触发飘字动画
     if (result.triggerLog && result.triggerLog.length > 0) {
       result.triggerLog.forEach((log, i) => {
         if (log.jokerIdx !== undefined) {
@@ -237,407 +213,168 @@ export function useGameState() {
       })
     }
 
-    for (let i = game.jokers.length - 1; i >= 0; i--) {
-      const def = JOKERS.find(j => j.id === game.jokers[i].id)
-      if (def?.consumeOnUse) game.jokers.splice(i, 1)
-    }
+    // 清理消耗型小丑
+    jokers.consumeTempJokers()
 
-    const selSet = new Set(game.selected)
-    game.hand = game.hand.filter(c => !selSet.has(c.id))
-    game.selected = []
-    drawCards(game, selectedCards.length)
+    // 移除已出牌，补牌
+    cards.removeSelected()
+    cards.draw(selectedCards.length)
 
-    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
+    // 点名 Boss：下一张
+    if (game.bossDebuff?.id === 'called_out') boss.rollCalledOut()
 
     setTimeout(() => {
       game.animating = false
       lastScoreResult.value = null
-      if (game.levelScore >= game.targetScore) winLevel()
-      else if (game.handsLeft <= 0) loseLevel()
+      level.afterPlayCheck()
     }, 1400)
 
-    saveGame()
+    saveSys.saveGame()
   }
 
   function discardCards() {
-    if (game.pendingConsumable !== null) { showToast('请先完成消耗品使用'); return }
+    if (consumables.isPending()) { showToast('请先完成消耗品使用'); return }
     if (game.selected.length === 0) { showToast('请选择要弃的牌'); return }
     if (game.discardsLeft <= 0) { showToast('没有换牌次数了!'); return }
 
-    if (blockedByCalledOut()) return
+    // 点名校验
+    const calledMsg = boss.checkCalledOut()
+    if (calledMsg) { showToast(calledMsg); return }
 
-    const selSet = new Set(game.selected)
-    const discarded = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
-    game.hand = game.hand.filter(c => !selSet.has(c.id))
-    game.selected = []
+    const discarded = cards.getSelectedCards()
+    cards.removeSelected()
     game.discardsLeft--
-    drawCards(game, discarded.length)
+    cards.draw(discarded.length)
     SFX.discard()
 
-    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
+    if (game.bossDebuff?.id === 'called_out') boss.rollCalledOut()
 
-    const discardEval = evaluateHand(discarded, game)
-    game.jokers.forEach(joker => {
-      const def = JOKERS.find(j => j.id === joker.id)
-      if (def?.onDiscard) def.onDiscard(discarded, joker, discardEval.type)
-    })
+    const discardEval = scoring.evaluateHand(discarded, game)
+    jokers.triggerOnDiscard(discarded, discardEval.type)
 
-    saveGame()
-  }
-
-  function winLevel() {
-    SFX.win()
-    const isBoss = isBossLevel(game.level) || (game.mode === 'endless' && isBossLevel(((game.level - 1) % 9) + 1))
-    const exceed = game.levelScore >= game.targetScore * 2
-    let reward = 0
-    if (isBoss) reward += exceed ? 5 : 4
-    else reward += exceed ? 5 : 3
-    reward += game.handsLeft
-    const interest = Math.floor(game.levelStartMoney * 0.2)
-    reward += interest
-    game.money += reward
-    showModal.value = 'levelcomplete'
-    saveGame()
+    saveSys.saveGame()
   }
 
   function goToShop() {
     showModal.value = null
-    game.rerollCount = 0
-    generateShopItems()
+    shop.generate(!!game.bossDebuff)
     showModal.value = 'shop'
-    saveGame()
+    saveSys.saveGame()
   }
 
   function nextLevel() {
     showModal.value = null
-    if (game.mode !== 'endless' && game.level >= 9) { gameClear(); return }
+    const continued = level.nextLevel()
+    if (!continued) return // 已经通关了
 
-    game.level++
-    game.levelScore = 0
-    game.handsLeft = 4
-    SFX.levelUp()
-    game.discardsLeft = 4
-    game.handSize = 8
-    game.bossDebuff = null
-    game.silencedJoker = null
-    game.lockedHandType = null
-    game.playedHandTypes = []
-    game.calledOutId = null
-    game.levelStartMoney = game.money
-    game.targetScore = getTargetScore(game.level, game.mode)
-    game.deck = shuffle(createDeck())
-    game.hand = []
-    game.selected = []
-    applyBossDebuff()
-    drawCards(game, game.handSize)
-    if (game.bossDebuff?.id === 'called_out') rollCalledOut()
+    boss.resetForNewLevel()
+    cards.initDeck()
+    boss.pickBoss()
+    cards.draw(game.handSize)
 
     if (game.mode === 'endless') {
       stats.value.maxEndless = Math.max(stats.value.maxEndless || 0, game.level)
+      saveSys.saveStats()
     }
-    saveStats()
-    saveGame()
-    const blindName = isBossLevel(((game.level - 1) % 9) + 1) ? 'Boss层' : '普通层'
+    saveSys.saveGame()
+    const blindName = boss.isBoss() ? 'Boss层' : '普通层'
     showToast(`第${game.level}层 - ${blindName}`)
   }
 
   function loseLevel() {
-    SFX.lose()
-    if (game.lives > 0) {
-      game.lives--
-      showToast(`复活! 剩余复活次数: ${game.lives}`)
-      game.handSize = 8
-      game.handsLeft = 4
-      game.discardsLeft = 4
-      game.levelScore = 0
-      game.lockedHandType = null
-      game.playedHandTypes = []
-      game.deck = shuffle(createDeck())
-      game.hand = []
-      game.selected = []
-      game.calledOutId = null
-      // 重新应用 Boss debuff 效果（跳过 high_wall，避免目标分重复乘算）
-      applyBossDebuffEffects({ scaleTarget: false })
-      drawCards(game, game.handSize)
-      if (game.bossDebuff?.id === 'called_out') rollCalledOut()
-      saveGame()
-      return
-    }
-    gameOver()
-  }
-
-  function gameOver() {
-    stats.value.maxScore = Math.max(stats.value.maxScore || 0, game.totalScore)
-    checkAchievements()
-    saveStats()
-    clearSave()
-    showModal.value = 'gameover'
-  }
-
-  function gameClear() {
-    SFX.win()
-    setTimeout(() => SFX.achievement(), 400)
-    game.cleared = true
-    if (game.mode === 'hard') {
-      stats.value.hardClears = (stats.value.hardClears || 0) + 1
-      if (!stats.value.unlockedChars?.includes('straight')) {
-        stats.value.unlockedChars = [...(stats.value.unlockedChars || []), 'straight']
-        showToast('解锁角色: 顺子牌手!', true)
-      }
-    }
-    stats.value.maxScore = Math.max(stats.value.maxScore || 0, game.totalScore)
-    if (!stats.value.unlockedEndless) { stats.value.unlockedEndless = true; showToast('解锁无尽模式!', true) }
-    checkAchievements()
-    saveStats()
-    clearSave()
-    showModal.value = 'gameover'
-  }
-
-  function generateShopItems() {
-    const isBoss = isBossLevel(game.level) || (game.mode === 'endless' && isBossLevel(((game.level - 1) % 9) + 1))
-    const count = isBoss ? 3 : 2
-    shopItems.value = []
-    for (let i = 0; i < count; i++) {
-      shopItems.value.push(generateShopItem(isBoss, i === 0 && isBoss))
-    }
-    shopConsumables.value = []
-    const consCount = Math.random() < 0.5 ? 2 : 1
-    for (let i = 0; i < consCount; i++) {
-      if (Math.random() < 0.6) {
-        const t = TAROTS[Math.floor(Math.random() * TAROTS.length)]
-        shopConsumables.value.push({ def: { ...t }, type: 'tarot', sold: false })
-      } else {
-        const p = PLANETS[Math.floor(Math.random() * PLANETS.length)]
-        shopConsumables.value.push({ def: { ...p }, type: 'planet', sold: false })
-      }
-    }
-  }
-
-  function generateShopItem(isBoss, forceEpicPlus) {
-    const rarityTable = isBoss
-      ? [{r:'common',w:25},{r:'rare',w:35},{r:'epic',w:30},{r:'legend',w:10}]
-      : [{r:'common',w:50},{r:'rare',w:30},{r:'epic',w:15},{r:'legend',w:5}]
-    let rarity
-    if (forceEpicPlus) rarity = Math.random() < 0.67 ? 'epic' : 'legend'
-    else {
-      const total = rarityTable.reduce((s, r) => s + r.w, 0)
-      let roll = Math.random() * total
-      for (const r of rarityTable) { roll -= r.w; if (roll <= 0) { rarity = r.r; break } }
-    }
-    const candidates = JOKERS.filter(j => j.rarity === rarity)
-    const def = candidates[Math.floor(Math.random() * candidates.length)]
-    return { def: { ...def }, sold: false }
-  }
-
-  function buyShopItem(idx) {
-    const item = shopItems.value[idx]
-    if (!item || item.sold) return
-    if (game.money < item.def.cost) { showToast('金币不足!'); return }
-    if (game.jokers.length >= 6) { showToast('小丑位已满!'); return }
-    game.money -= item.def.cost
-    game.jokers.push({ id: item.def.id, data: { stacks: 0 } })
-    item.sold = true
-    SFX.buy()
-    if (!stats.value.firstBuy) { stats.value.firstBuy = true; checkAchievements() }
-    if (item.def.rarity === 'legend' && !stats.value.legendBuy) { stats.value.legendBuy = true; checkAchievements() }
-    saveStats()
-    saveGame()
-  }
-
-  function sellJoker(idx) {
-    if (idx < 0 || idx >= game.jokers.length) return
-    const joker = game.jokers[idx]
-    const def = JOKERS.find(j => j.id === joker.id)
-    if (!def) return
-    if (joker.data?.locked) { showToast('锁定的小丑不能卖出!'); return }
-    const sellPrice = Math.max(1, Math.floor(def.cost / 2))
-    game.money += sellPrice
-    game.jokers.splice(idx, 1)
-    SFX.sell()
-    saveGame()
-  }
-
-  function deleteJoker(idx) {
-    sellJoker(idx)
-  }
-
-  function sellConsumable(idx) {
-    if (idx < 0 || idx >= game.consumables.length) return
-    const cons = game.consumables[idx]
-    const def = cons.type === 'tarot' ? TAROTS.find(t => t.id === cons.id) : PLANETS.find(p => p.id === cons.id)
-    if (!def) return
-    const sellPrice = Math.max(1, Math.floor((def.cost || 3) / 2))
-    game.money += sellPrice
-    game.consumables.splice(idx, 1)
-    showToast(`卖出 ${def.name}, 获得 $${sellPrice}`)
-    SFX.sell()
-    saveGame()
-  }
-
-  function rerollShop() {
-    const cost = 1 + game.rerollCount
-    if (game.money < cost) { showToast('金币不足!'); return }
-    game.money -= cost
-    game.rerollCount++
-    generateShopItems()
-    SFX.reroll()
-    saveGame()
-  }
-
-  function buyConsumable(idx) {
-    const item = shopConsumables.value[idx]
-    if (!item || item.sold) return
-    if (game.money < item.def.cost) { showToast('金币不足!'); return }
-    if (game.consumables.length >= 2) { showToast('消耗品栏已满!'); return }
-    game.money -= item.def.cost
-    game.consumables.push({ id: item.def.id, type: item.type })
-    item.sold = true
-    SFX.buy()
-    saveGame()
-  }
-
-  function useConsumable(idx) {
-    const cons = game.consumables[idx]
-    if (!cons) return
-    const def = cons.type === 'tarot' ? TAROTS.find(t => t.id === cons.id) : PLANETS.find(p => p.id === cons.id)
-    if (!def) return
-
-    if (cons.type === 'planet') {
-      const ht = def.handType
-      if (!game.handUpgrades[ht]) game.handUpgrades[ht] = { chips: 0, mult: 0 }
-      if (def.id === 'mars') game.handUpgrades[ht].chips += 3
-      else if (def.id === 'pluto') { game.handUpgrades[ht].chips += 2; game.handUpgrades[ht].mult += 1 }
-      else game.handUpgrades[ht].mult += (def.id === 'mercury' || def.id === 'venus') ? 1 : (def.id === 'earth' ? 2 : (def.id === 'saturn' || def.id === 'uranus') ? 3 : 4)
-      showToast(`升级 ${ht}!`)
-      game.consumables.splice(idx, 1)
-      SFX.useConsumable()
-      saveGame()
-      return
-    }
-
-    game.pendingConsumable = idx
-    game.pendingSuit = null
-    game.selected = []
-  }
-
-  function pickSuit(suit) {
-    game.pendingSuit = suit
-  }
-
-  function confirmConsumable() {
-    if (game.pendingConsumable === null) return
-    const cons = game.consumables[game.pendingConsumable]
-    if (!cons) return
-    const def = TAROTS.find(t => t.id === cons.id)
-    if (!def) return
-
-    const selectedCards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
-    if (selectedCards.length < def.selectCount) { showToast(`需要选择 ${def.selectCount} 张手牌`); return }
-
-    const result = def.use(game, selectedCards)
-    if (result === 'destroy') {
-      const idx = game.hand.findIndex(c => c.id === game.selected[0])
-      if (idx >= 0) game.hand.splice(idx, 1)
-      game.selected = []
-    } else if (result === 'choose_suit') {
-      if (!game.pendingSuit) { showToast('请先选择花色'); return }
-      selectedCards[0].suit = game.pendingSuit
-      game.selected = []
-    } else if (result === false) {
-      showToast('选择的手牌数量不对'); return
-    } else {
-      game.selected = []
-    }
-
-    game.consumables.splice(game.pendingConsumable, 1)
-    game.pendingConsumable = null
-    game.pendingSuit = null
-    SFX.useConsumable()
-    showToast(`使用了 ${def.name}`)
-    saveGame()
-  }
-
-  function cancelConsumable() {
-    game.pendingConsumable = null
-    game.pendingSuit = null
-    game.selected = []
-  }
-
-  function checkAchievements() {
-    for (const ach of ACHIEVEMENTS) {
-      const key = 'ach_' + ach.id
-      if (!stats.value[key] && ach.cond(stats.value)) {
-        stats.value[key] = true
-        showToast(`🏆 成就解锁: ${ach.name}!`, true)
-        SFX.achievement()
-      }
-    }
-  }
-
-  function saveGame() {
-    try {
-      const saveData = { ...game }
-      saveData.playedHandTypes = [...game.playedHandTypes]
-      localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
-      updateSaveFlag()
-    } catch(e) {}
+    level.loseLevel()
   }
 
   function exitToMenu() {
-    saveGame()
+    saveSys.saveGame()
     showModal.value = null
     screen.value = 'start'
   }
 
-  function loadGame() {
-    try {
-      const data = JSON.parse(localStorage.getItem(SAVE_KEY))
-      if (!data) return false
-      Object.assign(game, data)
-      game.playedHandTypes = data.playedHandTypes || []
-      // 读档后重置选中状态；兼容旧版索引制存档，点名 id 缺失时重roll
-      game.selected = []
-      if (game.bossDebuff?.id === 'called_out') {
-        if (typeof game.calledOutId !== 'number' || !game.hand.some(c => c.id === game.calledOutId)) rollCalledOut()
-      }
-      return true
-    } catch(e) { return false }
-  }
-
-  function hasSave() {
-    return hasSaveData.value
-  }
-
-  function clearSave() {
-    try { localStorage.removeItem(SAVE_KEY) } catch(e) {}
-    updateSaveFlag()
-  }
-
   function continueGame() {
-    if (loadGame()) {
+    stats.value = saveSys.loadStats()
+    if (saveSys.loadGame()) {
       screen.value = 'game'
       return true
     }
     return false
   }
 
-  function sortByRank() {
-    game.hand = sortHandByRank(game.hand)
-  }
+  // ========== 商店 API（兼容旧调用） ==========
 
-  function sortBySuit() {
-    game.hand = sortHandBySuit(game.hand)
+  const shopItems = shop.items
+  const shopConsumables = shop.consumables
+
+  function generateShopItems() { shop.generate(!!game.bossDebuff) }
+  function buyShopItem(idx) {
+    const ok = shop.buyJoker(idx)
+    if (ok) {
+      const item = shop.items.value[idx]
+      if (item?.def?.rarity === 'legend' && !stats.value.legendBuy) {
+        stats.value.legendBuy = true
+        achievements.checkAll()
+      }
+      saveSys.saveStats()
+    }
   }
+  function sellJoker(idx) {
+    const price = jokers.sellJoker(idx)
+    if (price) saveSys.saveGame()
+  }
+  function deleteJoker(idx) { sellJoker(idx) }
+  function rerollShop() { shop.reroll() }
+  function buyConsumable(idx) { shop.buyConsumable(idx) }
+
+  // ========== 消耗品 API（兼容旧调用） ==========
+
+  function useConsumable(idx) { consumables.startUse(idx) }
+  function sellConsumable(idx) { consumables.sellConsumable(idx); saveSys.saveGame() }
+  function pickSuit(suit) { consumables.pickSuit(suit) }
+  function confirmConsumable() {
+    const result = consumables.confirmUse()
+    if (result?.error) showToast(result.error)
+    else if (result?.success) { showToast(`使用了 ${result.name}`); saveSys.saveGame() }
+  }
+  function cancelConsumable() { consumables.cancelUse() }
+
+  // ========== 排序 ==========
+
+  function sortByRank() { cards.sortByRank() }
+  function sortBySuit() { cards.sortBySuit() }
+
+  // ========== 成就 ==========
+
+  function checkAchievements() { achievements.checkAll() }
+
+  // ========== 初始化 ==========
+
+  stats.value = saveSys.loadStats()
 
   return {
-    game, stats, selectedChar, selectedMode, shopItems, shopConsumables,
+    // 状态
+    game, stats, selectedChar, selectedMode,
+    shopItems, shopConsumables,
     screen, showModal, lastScoreResult, toasts, jokerBonusPopups,
+    // 系统引用（方便组件直接用）
+    cards, scoring, boss, level, jokers, shop, consumables,
+    // 游戏流程
     startGame, selectCard, playHand, discardCards,
-    winLevel, goToShop, nextLevel, loseLevel, gameOver, gameClear,
+    goToShop, nextLevel, loseLevel,
+    exitToMenu, continueGame,
+    // 商店
     generateShopItems, buyShopItem, sellJoker, deleteJoker, rerollShop, buyConsumable,
+    // 消耗品
     useConsumable, sellConsumable, pickSuit, confirmConsumable, cancelConsumable,
-    checkAchievements, saveGame, loadGame, hasSave, clearSave, continueGame, exitToMenu,
-    sortByRank, sortBySuit, showToast, SFX, initAudio,
-    evaluateHand, calculateScore,
+    // 其他
+    checkAchievements,
+    saveGame: () => saveSys.saveGame(),
+    loadGame: () => saveSys.loadGame(),
+    hasSave: () => saveSys.hasSave(),
+    clearSave: () => saveSys.clearSave(),
+    sortByRank, sortBySuit,
+    showToast, SFX, initAudio,
+    // 计分
+    evaluateHand: scoring.evaluateHand,
+    calculateScore: scoring.calculateScore,
   }
 }

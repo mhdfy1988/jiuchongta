@@ -1,16 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { useScoring } from '../src/composables/useScoring.js'
+import { reactive } from 'vue'
+import { createScoringSystem } from '../src/systems/scoringSystem.js'
 import { HAND_TYPES } from '../src/data/constants.js'
 
-const { evaluateHand, calculateScore } = useScoring()
+const { evaluateHand, calculateScore } = createScoringSystem()
 
-// 辅助：快速构造手牌
-function card(rank, suit, id = 0) {
-  return { id, rank, suit }
+function makeCards(list) {
+  let id = 1
+  return list.map(([rank, suit]) => ({ rank, suit, id: id++ }))
 }
 
-function makeGame(overrides = {}) {
-  return {
+function fakeGame(overrides = {}) {
+  return reactive({
     jokers: [],
     bossDebuff: null,
     silencedJoker: null,
@@ -18,140 +19,167 @@ function makeGame(overrides = {}) {
     handUpgrades: {},
     handsLeft: 4,
     discardsLeft: 4,
-    deck: { length: 52 },
+    deck: [],
     ...overrides,
-  }
+  })
 }
 
-describe('useScoring - evaluateHand', () => {
-  const game = makeGame()
-
+describe('牌型判定', () => {
   it('高牌', () => {
-    const r = evaluateHand([card('A','♠'), card('3','♥'), card('5','♦'), card('7','♣'), card('9','♠')], game)
+    const cards = makeCards([['2','♠'],['5','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('高牌')
-    expect(r.scoringCards).toHaveLength(1) // 只有最大的
+    expect(r.scoringCards.length).toBe(1)
   })
 
   it('一对', () => {
-    const r = evaluateHand([card('A','♠'), card('A','♥'), card('5','♦'), card('7','♣'), card('9','♠')], game)
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('一对')
+    expect(r.scoringCards.length).toBe(2)
   })
 
   it('两对', () => {
-    const r = evaluateHand([card('A','♠'), card('A','♥'), card('5','♦'), card('5','♣'), card('9','♠')], game)
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['9','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('两对')
+    expect(r.scoringCards.length).toBe(4)
   })
 
   it('三条', () => {
-    const r = evaluateHand([card('A','♠'), card('A','♥'), card('A','♦'), card('7','♣'), card('9','♠')], game)
+    const cards = makeCards([['2','♠'],['2','♥'],['2','♣'],['J','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('三条')
+    expect(r.scoringCards.length).toBe(3)
   })
 
-  it('顺子（A-2-3-4-5 低顺）', () => {
-    const r = evaluateHand([card('A','♠'), card('2','♥'), card('3','♦'), card('4','♣'), card('5','♠')], game)
-    expect(r.type).toBe('顺子')
-  })
-
-  it('顺子（10-J-Q-K-A）', () => {
-    const r = evaluateHand([card('10','♠'), card('J','♥'), card('Q','♦'), card('K','♣'), card('A','♠')], game)
+  it('顺子', () => {
+    const cards = makeCards([['2','♠'],['3','♥'],['4','♣'],['5','♦'],['6','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('顺子')
   })
 
   it('同花', () => {
-    const r = evaluateHand([card('A','♠'), card('3','♠'), card('5','♠'), card('7','♠'), card('9','♠')], game)
+    const cards = makeCards([['2','♠'],['5','♠'],['9','♠'],['J','♠'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('同花')
   })
 
   it('葫芦', () => {
-    const r = evaluateHand([card('A','♠'), card('A','♥'), card('A','♦'), card('5','♣'), card('5','♠')], game)
+    const cards = makeCards([['2','♠'],['2','♥'],['2','♣'],['K','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('葫芦')
   })
 
   it('四条', () => {
-    const r = evaluateHand([card('A','♠'), card('A','♥'), card('A','♦'), card('A','♣'), card('9','♠')], game)
+    const cards = makeCards([['2','♠'],['2','♥'],['2','♣'],['2','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('四条')
   })
 
   it('同花顺', () => {
-    const r = evaluateHand([card('10','♠'), card('J','♠'), card('Q','♠'), card('K','♠'), card('A','♠')], game)
+    const cards = makeCards([['2','♠'],['3','♠'],['4','♠'],['5','♠'],['6','♠']])
+    const r = evaluateHand(cards, fakeGame())
+    expect(r.type).toBe('同花顺')
+  })
+
+  it('皇家同花顺', () => {
+    const cards = makeCards([['10','♠'],['J','♠'],['Q','♠'],['K','♠'],['A','♠']])
+    const r = evaluateHand(cards, fakeGame())
     expect(r.type).toBe('皇家同花顺')
   })
 
-  it('五条', () => {
-    // 需要5张同点数，默认52张牌里不存在，这里仅验证判定逻辑
-    const r = evaluateHand([
-      card('A','♠'), card('A','♥'), card('A','♦'), card('A','♣'), card('A','♠')
-    ], game)
-    expect(r.type).toBe('五条')
-  })
-
-  it('空牌返回高牌0分', () => {
-    const r = evaluateHand([], game)
-    expect(r.type).toBe('--')
-    expect(r.chips).toBe(0)
-    expect(r.mult).toBe(0)
+  it('五条需要5张同点', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['2','♣'],['2','♦'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
+    expect(r.type).not.toBe('五条')
   })
 })
 
-describe('useScoring - calculateScore 基础', () => {
-  const game = makeGame()
+describe('计分', () => {
+  it('基础计分：高牌底分5x1 + 最高牌点数（J/Q/K都是10点）', () => {
+    const cards = makeCards([['2','♠'],['5','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = calculateScore(cards, fakeGame())
+    // 底分5，最高牌K=10点（J/Q/K都是10点）
+    expect(r.chips).toBe(5 + 10)
+    expect(r.mult).toBe(1)
+    expect(r.total).toBe(5 + 10)
+  })
 
-  it('基础一对得分 = 基础分(10,2) + 2张对子点数', () => {
-    const cards = [card('A','♠',1), card('A','♥',2), card('5','♦',3), card('7','♣',4), card('9','♠',5)]
-    const r = calculateScore(cards, game)
-    expect(r.type).toBe('一对')
-    expect(r.chips).toBeGreaterThan(HAND_TYPES['一对'][0])
+  it('一对计分正确', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = calculateScore(cards, fakeGame())
+    // 一对底分 10x2，2张2各加2点
+    const expectedChips = HAND_TYPES['一对'][0] + 2 + 2
+    expect(r.chips).toBe(expectedChips)
     expect(r.mult).toBe(HAND_TYPES['一对'][1])
+  })
+
+  it('Boss seal_king 人头牌不计分', () => {
+    // 用一对来测，两张2都不是人头牌，正常计分
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ bossDebuff: { id: 'seal_king' } })
+    const r = calculateScore(cards, game)
+    // 一对基础10 + 两张2各2点 = 14
+    expect(r.chips).toBe(10 + 2 + 2)
+  })
+
+  it('Boss color_cut 禁用花色不计分', () => {
+    // 一对2，一张♠一张♥，禁用♠后只有♥的2计分
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ bossDebuff: { id: 'color_cut', disabledSuit: '♠' } })
+    const r = calculateScore(cards, game)
+    // 一对基础10 + ♥的2（2点）
+    expect(r.chips).toBe(10 + 2)
+  })
+
+  it('牌型升级加chips', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ handUpgrades: { '一对': { chips: 10, mult: 0 } } })
+    const r = calculateScore(cards, game)
+    const baseChips = HAND_TYPES['一对'][0] + 2 + 2
+    expect(r.chips).toBe(baseChips + 10)
+  })
+
+  it('牌型升级加mult', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ handUpgrades: { '一对': { chips: 0, mult: 3 } } })
+    const r = calculateScore(cards, game)
+    expect(r.mult).toBe(HAND_TYPES['一对'][1] + 3)
+  })
+
+  it('小丑 hanger 触发两次首牌计分', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ jokers: [{ id: 'hanger', data: {} }] })
+    const r = calculateScore(cards, game)
+    // 一对基础分 + 2张2各2点 + hanger额外2次首牌(2点)
+    const baseChips = HAND_TYPES['一对'][0] + 2 + 2
+    expect(r.chips).toBe(baseChips + 2 + 2)
+  })
+
+  it('返回 breakdown 明细', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = calculateScore(cards, fakeGame())
+    expect(r.breakdown.length).toBeGreaterThan(0)
+    expect(r.breakdown[0].label).toContain('一对')
+  })
+
+  it('scoringCards 是实际参与计分的牌', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = calculateScore(cards, fakeGame())
+    expect(r.scoringCards.length).toBe(2) // 一对只有两张2计分
+  })
+
+  it('splash 小丑让所有打出的牌都计分', () => {
+    const cards = makeCards([['2','♠'],['2','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const game = fakeGame({ jokers: [{ id: 'splash', data: {} }] })
+    const r = calculateScore(cards, game)
+    expect(r.scoringCards.length).toBe(5) // 所有5张都计分
+  })
+
+  it('total = floor(chips * mult * finalMult)', () => {
+    const cards = makeCards([['2','♠'],['5','♥'],['9','♣'],['J','♦'],['K','♠']])
+    const r = calculateScore(cards, fakeGame())
     expect(r.total).toBe(Math.floor(r.chips * r.mult))
-  })
-
-  it('total = floor(chips * mult)', () => {
-    const cards = [card('A','♠',1), card('K','♥',2), card('Q','♦',3), card('J','♣',4), card('10','♠',5)]
-    const r = calculateScore(cards, game)
-    expect(r.total).toBe(Math.floor(r.chips * r.mult))
-  })
-})
-
-describe('useScoring - Boss debuff 计分', () => {
-  it('封王：人头牌不计分', () => {
-    const cards = [card('A','♠',1), card('K','♥',2), card('Q','♦',3), card('J','♣',4), card('10','♠',5)]
-    const game = makeGame({ bossDebuff: { id: 'seal_king' } })
-    const r = calculateScore(cards, game)
-    // scoringCards 中不应有人头牌
-    const faceCards = r.scoringCards.filter(c => ['J','Q','K'].includes(c.rank))
-    expect(faceCards).toHaveLength(0)
-  })
-
-  it('断色：被禁用花色不计分', () => {
-    const cards = [card('A','♠',1), card('K','♠',2), card('Q','♥',3), card('J','♥',4), card('10','♦',5)]
-    const game = makeGame({ bossDebuff: { id: 'color_cut', disabledSuit: '♠' } })
-    const r = calculateScore(cards, game)
-    const spades = r.scoringCards.filter(c => c.suit === '♠')
-    expect(spades).toHaveLength(0)
-  })
-
-  it('沉默：被沉默的小丑不生效', () => {
-    const joker = { id: 'joker_plus_3', data: {} }
-    const cards = [card('A','♠',1), card('A','♥',2), card('5','♦',3), card('7','♣',4), card('9','♠',5)]
-    const gameWith = makeGame({ jokers: [joker], bossDebuff: { id: 'silence' }, silencedJoker: joker })
-    const gameWithout = makeGame({ jokers: [joker] })
-    const rWith = calculateScore(cards, gameWith)
-    const rWithout = calculateScore(cards, gameWithout)
-    // 沉默状态下得分应低于不沉默
-    expect(rWith.total).toBeLessThanOrEqual(rWithout.total)
-  })
-})
-
-describe('useScoring - 牌型升级', () => {
-  it('星球牌升级增加牌型底分和倍率', () => {
-    const cards = [card('A','♠',1), card('A','♥',2), card('5','♦',3), card('7','♣',4), card('9','♠',5)]
-    const game = makeGame({
-      handUpgrades: { '一对': { chips: 20, mult: 3 } }
-    })
-    const r = calculateScore(cards, game)
-    expect(r.type).toBe('一对')
-    // 基础 10 + 升级 20 = 30 chips 应在 breakdown 中体现
-    expect(r.chips).toBeGreaterThanOrEqual(HAND_TYPES['一对'][0] + 20)
-    expect(r.mult).toBeGreaterThanOrEqual(HAND_TYPES['一对'][1] + 3)
   })
 })

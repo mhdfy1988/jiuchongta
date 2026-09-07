@@ -64,35 +64,44 @@
       <!-- 小丑牌 + 消耗品行 -->
       <div class="cards-row">
         <div class="jokers-area">
-          <div v-for="(joker, idx) in game.jokers" :key="'j'+idx"
-            class="joker-card"
-            :class="[`rarity-${getJokerDef(joker)?.rarity}`, { temporary: getJokerDef(joker)?.temp, locked: joker.data?.locked }]"
-            @mouseenter="showJokerTooltip($event, joker)"
-            @mouseleave="hideTooltip"
+          <JokerCard
+            v-for="(joker, idx) in game.jokers"
+            :key="'j'+idx"
+            :def="getJokerDef(joker) || {}"
+            size="sm"
+            :locked="joker.data?.locked"
+            @hover="(e, def) => showJokerTip(e, def, joker)"
+            @leave="hideTip"
           >
-            <span class="j-icon">{{ getJokerDef(joker)?.icon }}</span>
-            <span class="j-name">{{ getJokerDef(joker)?.name }}</span>
-            <div v-if="joker.data?.stacks" class="j-stacks">{{ joker.data.stacks }}</div>
-            <div v-if="!joker.data?.locked" class="j-delete" @click.stop="state.deleteJoker(idx)">$</div>
-            <div v-for="popup in bonusPopupsFor(idx)" :key="popup.text" class="joker-bonus-popup" :style="{ color: popup.color }">{{ popup.text }}</div>
-          </div>
+            <template v-if="joker.data?.stacks" #stack>
+              <div class="j-stacks">{{ joker.data.stacks }}</div>
+            </template>
+            <template v-if="!joker.data?.locked" #action>
+              <div class="j-delete" @click.stop="state.deleteJoker(idx)">$</div>
+            </template>
+            <div
+              v-for="popup in bonusPopupsFor(idx)"
+              :key="popup.text"
+              class="joker-bonus-popup"
+              :style="{ color: popup.color }"
+            >{{ popup.text }}</div>
+          </JokerCard>
           <div v-for="n in Math.max(0, 6 - game.jokers.length)" :key="'ej'+n" class="empty-slot joker-slot">
             <span class="slot-plus">+</span>
           </div>
         </div>
 
         <div class="consumables-area">
-          <div v-for="(cons, idx) in game.consumables" :key="'c'+idx"
-            class="consumable-card"
-            :class="cons.type"
+          <ConsumableCard
+            v-for="(cons, idx) in game.consumables"
+            :key="'c'+idx"
+            :def="getConsDef(cons) || {}"
+            :type="cons.type"
+            size="sm"
             @click="state.useConsumable(idx)"
-            @contextmenu.prevent="state.sellConsumable(idx)"
-            @mouseenter="showConsTooltip($event, cons)"
-            @mouseleave="hideTooltip"
-          >
-            <span class="c-icon">{{ getConsDef(cons)?.icon }}</span>
-            <span class="c-name">{{ getConsDef(cons)?.name }}</span>
-          </div>
+            @hover="(e, def) => showConsTip(e, def, cons.type)"
+            @leave="hideTip"
+          />
           <div v-for="n in Math.max(0, 2 - game.consumables.length)" :key="'ec'+n" class="empty-slot consumable-slot">
             <span class="slot-plus">+</span>
           </div>
@@ -101,16 +110,14 @@
 
       <!-- 手牌区 -->
       <div class="hand-area">
-        <div
-          v-for="(card, idx) in game.hand" :key="card.id"
-          class="playing-card"
-          :class="{ red: card.suit === '♥' || card.suit === '♦', black: card.suit === '♠' || card.suit === '♣', selected: game.selected.includes(card.id), 'called-out': game.calledOutId === card.id }"
+        <PlayingCard
+          v-for="card in game.hand"
+          :key="card.id"
+          :card="card"
+          :selected="game.selected.includes(card.id)"
+          :called-out="game.calledOutId === card.id"
           @click="state.selectCard(card.id)"
-        >
-          <div class="pc-corner top"><span class="pc-rank">{{ card.rank }}</span><span class="pc-suit">{{ card.suit }}</span></div>
-          <div class="pc-center">{{ card.suit }}</div>
-          <div class="pc-corner bot"><span class="pc-rank">{{ card.rank }}</span><span class="pc-suit">{{ card.suit }}</span></div>
-        </div>
+        />
       </div>
 
       <!-- 操作按钮 -->
@@ -174,7 +181,16 @@
     </div>
 
     <!-- 悬浮提示 -->
-    <div v-if="tooltipContent" class="joker-tooltip" :style="tooltipStyle" v-html="tooltipContent"></div>
+    <Tooltip
+      :visible="tip.visible"
+      :x="tip.x"
+      :y="tip.y"
+      :icon="tip.icon"
+      :name="tip.name"
+      :subtitle="tip.subtitle"
+      :desc="tip.desc"
+      :extra="tip.extra"
+    />
 
     <!-- 消耗品使用覆盖层 -->
     <ConsumableOverlay v-if="game.pendingConsumable !== null" :state="state" />
@@ -192,10 +208,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { JOKERS } from '../data/jokers.js'
-import { TAROTS, PLANETS, getConsumableDef } from '../data/consumables.js'
-import { isBossLevel } from '../data/constants.js'
+import { computed, ref, reactive } from 'vue'
+import { getJoker } from '../utils/gameData.js'
+import { getConsumableDef } from '../utils/gameData.js'
+import { isBossLevel, RARITY_NAMES } from '../data/constants.js'
+import JokerCard from './game/JokerCard.vue'
+import ConsumableCard from './game/ConsumableCard.vue'
+import PlayingCard from './game/PlayingCard.vue'
+import Tooltip from './common/Tooltip.vue'
 import ConsumableOverlay from './ConsumableOverlay.vue'
 import LevelCompleteModal from './LevelCompleteModal.vue'
 import ShopModal from './ShopModal.vue'
@@ -227,11 +247,11 @@ const previewHand = computed(() => {
 })
 
 function getJokerDef(joker) {
-  return JOKERS.find(j => j.id === joker.id)
+  return getJoker(joker.id)
 }
 
 function getConsDef(cons) {
-  return getConsumableDef(cons)
+  return getConsumableDef(cons.type, cons.id)
 }
 
 function multItems(breakdown) {
@@ -243,38 +263,42 @@ function bonusPopupsFor(idx) {
   return props.state.jokerBonusPopups.value.filter(p => p.jokerIdx === idx)
 }
 
-const tooltipContent = ref('')
-const tooltipStyle = ref({})
+// ---------- Tooltip ----------
+const tip = reactive({
+  visible: false, x: 0, y: 0,
+  icon: '', name: '', subtitle: '', desc: '', extra: '',
+})
 
-function showJokerTooltip(e, joker) {
-  const def = getJokerDef(joker)
+function showJokerTip(e, def, joker) {
   if (!def) return
   const stacks = joker.data?.stacks
-  tooltipContent.value = `
-    <div style="font-size:22px;">${def.icon}</div>
-    <div style="font-size:14px; font-weight:800; color:var(--gold); margin:4px 0;">${def.name}</div>
-    <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">${def.type === 'chips' ? '底分' : def.type === 'mult' ? '倍率' : def.type === 'xmult' ? '乘倍率' : def.type === 'utility' ? '功能' : '临时'} · $${def.cost}</div>
-    <div style="font-size:11px; color:var(--text); line-height:1.5; max-width:180px;">${def.desc}</div>
-    ${stacks ? `<div style="font-size:11px; color:var(--accent); margin-top:4px;">叠加: ${stacks}</div>` : ''}
-  `
-  tooltipStyle.value = { left: e.clientX + 15 + 'px', top: e.clientY - 10 + 'px' }
+  const typeLabel = def.type === 'chips' ? '底分'
+    : def.type === 'mult' ? '倍率'
+    : def.type === 'xmult' ? '乘倍率'
+    : def.type === 'utility' ? '功能' : '临时'
+  Object.assign(tip, {
+    visible: true,
+    x: e.clientX + 12, y: e.clientY,
+    icon: def.icon, name: def.name,
+    subtitle: `${typeLabel} · $${def.cost}`,
+    desc: def.desc,
+    extra: stacks ? `叠加: ${stacks}` : '',
+  })
 }
 
-function showConsTooltip(e, cons) {
-  const def = getConsDef(cons)
+function showConsTip(e, def, type) {
   if (!def) return
-  tooltipContent.value = `
-    <div style="font-size:22px;">${def.icon}</div>
-    <div style="font-size:14px; font-weight:800; color:var(--gold); margin:4px 0;">${def.name}</div>
-    <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">${cons.type === 'tarot' ? '塔罗牌' : '星球牌'} · $${def.cost}</div>
-    <div style="font-size:11px; color:var(--text); line-height:1.5; max-width:180px;">${def.desc}</div>
-  `
-  tooltipStyle.value = { left: e.clientX + 15 + 'px', top: e.clientY - 10 + 'px' }
+  Object.assign(tip, {
+    visible: true,
+    x: e.clientX + 12, y: e.clientY,
+    icon: def.icon, name: def.name,
+    subtitle: `${type === 'tarot' ? '塔罗牌' : '星球牌'} · $${def.cost}`,
+    desc: def.desc,
+    extra: '',
+  })
 }
 
-function hideTooltip() {
-  tooltipContent.value = ''
-}
+function hideTip() { tip.visible = false }
 </script>
 
 <style scoped>
