@@ -33,7 +33,7 @@ describe('SaveSystem', () => {
   })
 
   it('saveGame 保存后有存档', () => {
-    save.saveGame()
+    save.saveGameNow()
     expect(save.hasSave()).toBe(true)
   })
 
@@ -41,7 +41,7 @@ describe('SaveSystem', () => {
     game.money = 100
     game.level = 5
     game.playedHandTypes = ['一对', '两对']
-    save.saveGame()
+    save.saveGameNow()
 
     // 重置 game
     game.money = 5
@@ -68,21 +68,21 @@ describe('SaveSystem', () => {
   })
 
   it('clearSave 清除存档', () => {
-    save.saveGame()
+    save.saveGameNow()
     expect(save.hasSave()).toBe(true)
     save.clearSave()
     expect(save.hasSave()).toBe(false)
   })
 
   it('存档包含版本号', () => {
-    save.saveGame()
+    save.saveGameNow()
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY))
     expect(raw.__version).toBe(SAVE_VERSION)
   })
 
   it('loadGame 后 selected 被清空', () => {
     game.selected = [1, 2, 3]
-    save.saveGame()
+    save.saveGameNow()
     save.loadGame()
     expect(game.selected).toEqual([])
   })

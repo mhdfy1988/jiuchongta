@@ -48,7 +48,7 @@ export function createCardSystem(game, bus) {
 
   function draw(n) {
     drawCards(game, n)
-    if (n > 0) bus.emit(EVENTS.HAND_DRAWN, { count: n })
+    if (n > 0) { SFX.draw(); bus.emit(EVENTS.HAND_DRAWN, { count: n }) }
   }
 
   function refillHand() {

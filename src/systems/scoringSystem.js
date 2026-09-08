@@ -1,6 +1,12 @@
 import { RANK_VALUES, RANK_ORDER, FACE_CARDS, HAND_TYPES } from '../data/constants.js'
 import { getJoker } from '../utils/gameData.js'
 
+// 每次调用构建新 Set（jokers 通常 ≤5 个，开销可忽略）
+// 之前的模块级缓存用引用比较，Vue reactive 数组 push/splice 后引用不变会导致缓存过期
+function buildJokerIdSet(jokers) {
+  return new Set(jokers.map(j => j.id))
+}
+
 /**
  * 计分系统：牌型判定 + 分数计算
  * 纯计算模块，只读 game 不写 game
@@ -37,20 +43,23 @@ export function createScoringSystem() {
   function evaluateHand(cards, game) {
     if (cards.length === 0) return { type: '--', chips: 0, mult: 0, scoringCards: [] }
 
-    const hasFourFingers = game.jokers.some(j => j.id === 'four_fingers')
-    const hasShortcut = game.jokers.some(j => j.id === 'shortcut')
-    const hasFuzzy = game.jokers.some(j => j.id === 'fuzzy')
+    const idSet = buildJokerIdSet(game.jokers)
+    const hasFourFingers = idSet.has('four_fingers')
+    const hasShortcut = idSet.has('shortcut')
+    const hasFuzzy = idSet.has('fuzzy')
 
-    const effectiveCards = cards.map(c => ({ ...c }))
-    if (hasFuzzy) {
-      effectiveCards.forEach(c => {
-        if (c.suit === '♥') c.effSuit = '♦'
-        else if (c.suit === '♠') c.effSuit = '♣'
-        else c.effSuit = c.suit
-      })
-    } else {
-      effectiveCards.forEach(c => c.effSuit = c.suit)
-    }
+    // 构建 original → effectiveCard 的索引映射，避免后续 indexOf O(n) 查找
+    const cardIndex = new Map()
+    const effectiveCards = cards.map(c => {
+      const ec = { ...c }
+      ec.effSuit = hasFuzzy
+        ? (c.suit === '♥' ? '♦' : c.suit === '♠' ? '♣' : c.suit)
+        : c.suit
+      cardIndex.set(c, ec)
+      return ec
+    })
+    // effectiveCard → original card 的反查表
+    const ecToOriginal = new Map(effectiveCards.map((ec, i) => [ec, cards[i]]))
 
     const rankCount = {}
     effectiveCards.forEach(c => { rankCount[c.rank] = (rankCount[c.rank] || 0) + 1 })
@@ -69,7 +78,7 @@ export function createScoringSystem() {
 
     if (counts[0] >= 5) {
       handType = '五条'
-      scoringCards = effectiveCards.filter(c => rankCount[c.rank] >= 5).map(c => cards[effectiveCards.indexOf(c)])
+      scoringCards = effectiveCards.filter(c => rankCount[c.rank] >= 5).map(ec => ecToOriginal.get(ec))
     } else if (isStraight && isFlush && straightCards) {
       const straightRanks = straightCards.map(c => c.rank)
       if (straightRanks.includes('10') && straightRanks.includes('J') && straightRanks.includes('Q') && straightRanks.includes('K') && straightRanks.includes('A')) {
@@ -77,7 +86,7 @@ export function createScoringSystem() {
       } else {
         handType = '同花顺'
       }
-      scoringCards = straightCards.map(c => cards[effectiveCards.indexOf(c)])
+      scoringCards = straightCards.map(ec => ecToOriginal.get(ec))
     } else if (counts[0] === 4) {
       handType = '四条'
       scoringCards = cards.filter(c => rankCount[c.rank] === 4)
@@ -89,7 +98,7 @@ export function createScoringSystem() {
       scoringCards = cards.slice().sort((a, b) => RANK_VALUES[b.rank] - RANK_VALUES[a.rank]).slice(0, 5)
     } else if (isStraight && straightCards) {
       handType = '顺子'
-      scoringCards = straightCards.map(c => cards[effectiveCards.indexOf(c)])
+      scoringCards = straightCards.map(ec => ecToOriginal.get(ec))
     } else if (counts[0] === 3) {
       handType = '三条'
       scoringCards = cards.filter(c => rankCount[c.rank] === 3)
@@ -105,7 +114,7 @@ export function createScoringSystem() {
     }
 
     // 邻座小丑：四条+差1点变五条
-    if (handType === '四条' && game.jokers.some(j => j.id === 'neighbor')) {
+    if (handType === '四条' && idSet.has('neighbor')) {
       const fourRank = Object.keys(rankCount).find(r => rankCount[r] === 4)
       const fifthCard = cards.find(c => c.rank !== fourRank)
       if (fifthCard) {
@@ -135,8 +144,8 @@ export function createScoringSystem() {
 
     // splash：所有打出的有效牌都计分
     let scoringCards = evalResult.scoringCards
-    const splash = game.jokers.find(j => j.id === 'splash')
-    if (splash) scoringCards = [...effectiveCards]
+    const idSet = buildJokerIdSet(game.jokers)
+    if (idSet.has('splash')) scoringCards = [...effectiveCards]
 
     // Boss 过滤（人头牌不计分,只影响底分不影响牌型）
     if (game.bossDebuff?.id === 'seal_king') {
@@ -149,11 +158,11 @@ export function createScoringSystem() {
     })
 
     // 额外触发（吊牌、喜与悲）
-    const hanger = game.jokers.find(j => j.id === 'hanger')
-    const joySorrow = game.jokers.find(j => j.id === 'joy_sorrow')
+    const hasHanger = idSet.has('hanger')
+    const hasJoySorrow = idSet.has('joy_sorrow')
     let extraTriggers = {}
-    if (hanger && scoringCards.length > 0) extraTriggers[0] = (extraTriggers[0] || 0) + 2
-    if (joySorrow) scoringCards.forEach((c, i) => { if (FACE_CARDS.includes(c.rank)) extraTriggers[i] = (extraTriggers[i] || 0) + 1 })
+    if (hasHanger && scoringCards.length > 0) extraTriggers[0] = (extraTriggers[0] || 0) + 2
+    if (hasJoySorrow) scoringCards.forEach((c, i) => { if (FACE_CARDS.includes(c.rank)) extraTriggers[i] = (extraTriggers[i] || 0) + 1 })
     for (const idx in extraTriggers) {
       const card = scoringCards[idx]
       if (!card) continue
@@ -176,7 +185,9 @@ export function createScoringSystem() {
       game, joker: null, finalMult: 1,
     }
 
-    for (const joker of game.jokers) {
+    const jokers = game.jokers
+    for (let ji = 0; ji < jokers.length; ji++) {
+      const joker = jokers[ji]
       if (game.bossDebuff?.id === 'silence' && game.silencedJoker === joker) continue
       const def = getJoker(joker.id)
       if (!def || !def.effect) continue
@@ -187,7 +198,7 @@ export function createScoringSystem() {
       const dChips = ctx.chips - beforeChips
       const dMult = ctx.mult - beforeMult
       if (dChips > 0 || dMult > 0) {
-        triggerLog.push({ name: def.name, chips: dChips, mult: dMult, jokerIdx: game.jokers.indexOf(joker) })
+        triggerLog.push({ name: def.name, chips: dChips, mult: dMult, jokerIdx: ji })
       }
     }
 

@@ -96,6 +96,7 @@ export function createLevelSystem(game, bus) {
     game.levelStartMoney = game.money
     game.targetScore = getTargetScore(game.level, game.mode)
     SFX.levelUp()
+    if (isBossLevel(game.level)) SFX.bossAppear()
 
     bus.emit(EVENTS.LEVEL_START, { level: game.level })
 

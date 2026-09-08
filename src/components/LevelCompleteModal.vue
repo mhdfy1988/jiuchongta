@@ -9,13 +9,13 @@
 <script setup>
 import { computed } from 'vue'
 import BaseModal from './common/BaseModal.vue'
-import { isBossLevel } from '../data/constants.js'
+import { isBossLevelForGame } from '../data/constants.js'
 
 const props = defineProps({ state: Object })
 const game = props.state.game
 
 const rewardsHTML = computed(() => {
-  const isBoss = isBossLevel(game.level) || (game.mode === 'endless' && isBossLevel(((game.level - 1) % 9) + 1))
+  const isBoss = isBossLevelForGame(game)
   const exceed = game.levelScore >= game.targetScore * 2
   let reward = 0
   if (isBoss) reward += exceed ? 5 : 4

@@ -23,7 +23,7 @@
 <script setup>
 import { computed } from 'vue'
 import { SUITS } from '../data/constants.js'
-import { TAROTS } from '../data/consumables.js'
+import { getConsumableDef } from '../utils/gameData.js'
 
 const props = defineProps({ state: Object })
 const game = props.state.game
@@ -31,9 +31,9 @@ const suits = SUITS
 
 const def = computed(() => {
   if (game.pendingConsumable === null) return null
-  const cons = game.consumables[game.pendingConsumable]
+  const cons = game.pendingConsumable
   if (!cons) return null
-  return TAROTS.find(t => t.id === cons.id)
+  return getConsumableDef(cons.type, cons.id)
 })
 
 const showSuitPicker = computed(() => {

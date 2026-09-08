@@ -37,7 +37,7 @@
 <script setup>
 import { computed } from 'vue'
 import BaseModal from './common/BaseModal.vue'
-import { JOKERS } from '../data/jokers.js'
+import { getJoker } from '../utils/gameData.js'
 import { HAND_TYPES, RARITY_NAMES } from '../data/constants.js'
 
 const props = defineProps({ state: Object })
@@ -45,7 +45,7 @@ const emit = defineEmits(['close'])
 const game = props.state.game
 
 function getJokerDef(joker) {
-  return JOKERS.find(j => j.id === joker.id)
+  return getJoker(joker.id)
 }
 
 function rarityName(r) { return RARITY_NAMES[r] || '' }

@@ -39,6 +39,11 @@ export function isBossLevel(level) {
   return level === 3 || level === 6 || level === 9
 }
 
+export function isBossLevelForGame(game) {
+  const lvl = game.mode === 'endless' ? ((game.level - 1) % 9) + 1 : game.level
+  return isBossLevel(lvl)
+}
+
 export function getTargetScore(level, mode) {
   if (mode === 'endless') return getEndlessTarget(level)
   const targets = mode === 'simple' ? SIMPLE_TARGETS : HARD_TARGETS

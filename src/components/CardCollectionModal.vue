@@ -177,7 +177,7 @@ function switchTab(t) {
 }
 
 function rarityName(r) {
-  return { common: '普通', rare: '稀有', epic: '史诗', legendary: '传说' }[r] || r
+  return { common: '普通', rare: '稀有', epic: '史诗', legend: '传说' }[r] || r
 }
 
 function typeName(t) {
@@ -213,7 +213,7 @@ h2 { font-size: 20px; color: var(--gold); margin-bottom: 14px; text-align: cente
 .info-card.rarity-common { border-color: rgba(180,180,180,0.2); }
 .info-card.rarity-rare { border-color: rgba(68,170,255,0.3); box-shadow: 0 0 8px rgba(68,170,255,0.08); }
 .info-card.rarity-epic { border-color: rgba(170,68,255,0.3); box-shadow: 0 0 8px rgba(170,68,255,0.08); }
-.info-card.rarity-legendary { border-color: rgba(255,204,34,0.4); box-shadow: 0 0 12px rgba(255,204,34,0.1); }
+.info-card.rarity-legend { border-color: rgba(255,204,34,0.4); box-shadow: 0 0 12px rgba(255,204,34,0.1); }
 .info-card.tarot-card { border-color: rgba(170,68,255,0.25); }
 .info-card.planet-card { border-color: rgba(68,170,255,0.25); }
 
@@ -225,7 +225,7 @@ h2 { font-size: 20px; color: var(--gold); margin-bottom: 14px; text-align: cente
 .tag-common { background: rgba(180,180,180,0.15); color: #aaa; }
 .tag-rare { background: rgba(68,170,255,0.15); color: var(--blue); }
 .tag-epic { background: rgba(170,68,255,0.15); color: var(--purple); }
-.tag-legendary { background: rgba(255,204,34,0.15); color: var(--gold); }
+.tag-legend { background: rgba(255,204,34,0.15); color: var(--gold); }
 .tag-type { background: rgba(255,255,255,0.06); color: var(--muted); }
 .tag-temp { background: rgba(255,100,100,0.15); color: #ff6464; }
 .tag-tarot { background: rgba(170,68,255,0.15); color: var(--purple); }

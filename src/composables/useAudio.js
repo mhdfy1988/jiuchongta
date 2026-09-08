@@ -75,6 +75,20 @@ export const SFX = {
   achievement() { playTone(659, 0.1, 'sine', 0.1); playTone(880, 0.1, 'sine', 0.08, 0.08); playTone(1047, 0.15, 'sine', 0.1, 0.16); playTone(1319, 0.2, 'sine', 0.08, 0.24); },
   levelUp() { playTone(440, 0.08, 'triangle', 0.1); playTone(554, 0.08, 'triangle', 0.08, 0.06); playTone(659, 0.12, 'triangle', 0.08, 0.12); },
   button() { playTone(600, 0.03, 'square', 0.04); },
+  // 抽牌:轻快连续音
+  draw() { playTone(700, 0.04, 'triangle', 0.07); playTone(900, 0.04, 'triangle', 0.05, 0.04); playTone(1100, 0.05, 'triangle', 0.04, 0.08); },
+  // Boss 出场:低沉压迫感
+  bossAppear() { playTone(80, 0.3, 'sawtooth', 0.15); playTone(55, 0.4, 'sine', 0.12, 0.1); playNoise(0.2, 0.08); playTone(120, 0.2, 'sawtooth', 0.08, 0.15); },
+  // 商店打开:金属铃铛感
+  shopOpen() { playTone(1320, 0.06, 'sine', 0.08); playTone(1760, 0.08, 'sine', 0.06, 0.04); playTone(2200, 0.1, 'sine', 0.04, 0.08); },
+  // 游戏开始:上升号角
+  gameStart() { playTone(330, 0.08, 'triangle', 0.1); playTone(440, 0.08, 'triangle', 0.09, 0.06); playTone(554, 0.08, 'triangle', 0.08, 0.12); playTone(659, 0.2, 'triangle', 0.1, 0.18); },
+  // 排序:快速滑动感
+  sort() { playTone(500, 0.03, 'triangle', 0.05); playTone(700, 0.03, 'triangle', 0.04, 0.03); playTone(900, 0.04, 'triangle', 0.03, 0.06); },
+  // 牌堆点击:翻牌质感
+  deckClick() { playNoise(0.05, 0.04); playTone(400, 0.04, 'triangle', 0.05); },
+  // 过关弹窗弹出:华丽上升
+  levelComplete() { playTone(523, 0.06, 'triangle', 0.08); playTone(659, 0.06, 'triangle', 0.07, 0.05); playTone(784, 0.06, 'triangle', 0.07, 0.1); playTone(1047, 0.15, 'triangle', 0.09, 0.15); playTone(1319, 0.2, 'sine', 0.06, 0.2); },
 }
 
 export function useAudio() {

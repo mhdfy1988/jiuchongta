@@ -1,5 +1,8 @@
 import { SUITS, RANKS } from '../data/constants.js'
 
+const RANK_SORT_ORDER = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
+const SUIT_SORT_ORDER = { '♠':0, '♥':1, '♣':2, '♦':3 }
+
 export function createDeck() {
   const deck = []
   let id = 0
@@ -26,17 +29,12 @@ export function drawCards(game, n) {
 }
 
 export function sortByRank(hand) {
-  return [...hand].sort((a, b) => {
-    const ra = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
-    return ra[a.rank] - ra[b.rank]
-  })
+  return [...hand].sort((a, b) => RANK_SORT_ORDER[a.rank] - RANK_SORT_ORDER[b.rank])
 }
 
 export function sortBySuit(hand) {
-  const order = { '♠':0, '♥':1, '♣':2, '♦':3 }
   return [...hand].sort((a, b) => {
-    if (order[a.suit] !== order[b.suit]) return order[a.suit] - order[b.suit]
-    const ra = { 'A':14,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13 }
-    return ra[a.rank] - ra[b.rank]
+    if (SUIT_SORT_ORDER[a.suit] !== SUIT_SORT_ORDER[b.suit]) return SUIT_SORT_ORDER[a.suit] - SUIT_SORT_ORDER[b.suit]
+    return RANK_SORT_ORDER[a.rank] - RANK_SORT_ORDER[b.rank]
   })
 }

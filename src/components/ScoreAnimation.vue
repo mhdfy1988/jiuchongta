@@ -200,6 +200,12 @@ function skip() {
 onMounted(() => {
   SFX.scoreSlam()
   const list = steps.value
+  if (list.length === 0) {
+    // 空步骤：直接跳到最终结算
+    later(() => toFinal(false), SA_TIMING.TYPE + SA_TIMING.PRE_FINAL)
+    rafId = requestAnimationFrame(tick)
+    return
+  }
   list.forEach((item, i) => {
     const at = i === 0
       ? SA_TIMING.TYPE

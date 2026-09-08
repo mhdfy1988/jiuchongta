@@ -214,12 +214,14 @@ describe('useGameState 集成测试', () => {
   it('存档：开始游戏后有存档', () => {
     state.selectedMode.value = 'simple'
     state.startGame()
+    state.saveGameNow()
     expect(state.hasSave()).toBe(true)
   })
 
   it('读档：继续游戏能恢复状态', () => {
     state.selectedMode.value = 'simple'
     state.startGame()
+    state.saveGameNow()
     const level = state.game.level
     const money = state.game.money
 

@@ -75,18 +75,26 @@ export function useGameState() {
 
   // ========== 事件监听（系统间协调） ==========
 
-  bus.on(EVENTS.LEVEL_WON, () => {
+  const busHandlers = []
+
+  function onBus(event, handler) {
+    bus.on(event, handler)
+    busHandlers.push([event, handler])
+  }
+
+  onBus(EVENTS.LEVEL_WON, () => {
     showModal.value = 'levelcomplete'
-    saveSys.saveGame()
+    SFX.levelComplete()
+    saveSys.saveGameNow()
   })
 
-  bus.on(EVENTS.GAME_OVER, () => {
+  onBus(EVENTS.GAME_OVER, () => {
     achievements.recordMax('maxScore', game.totalScore)
     showModal.value = 'gameover'
     saveSys.clearSave()
   })
 
-  bus.on(EVENTS.GAME_CLEAR, () => {
+  onBus(EVENTS.GAME_CLEAR, () => {
     if (game.mode === 'hard') {
       const s = stats.value
       s.hardClears = (s.hardClears || 0) + 1
@@ -104,25 +112,24 @@ export function useGameState() {
     showModal.value = 'gameover'
   })
 
-  bus.on(EVENTS.REVIVED, ({ lives }) => {
+  onBus(EVENTS.REVIVED, ({ lives }) => {
     showToast(`复活! 剩余复活次数: ${lives}`)
     boss.reapplyForRevive()
     cards.initDeck()
     cards.draw(game.handSize)
-    boss.ensureCalledOut() // 点名 Boss:抽完手牌后立刻点名
+    boss.ensureCalledOut()
     saveSys.saveGame()
   })
 
-  bus.on(EVENTS.ITEM_BOUGHT, ({ type }) => {
+  onBus(EVENTS.ITEM_BOUGHT, ({ type }) => {
     if (type === 'joker') {
       if (!stats.value.firstBuy) { stats.value.firstBuy = true; achievements.checkAll() }
     }
     saveSys.saveGame()
   })
 
-  bus.on(EVENTS.ACHIEVEMENT_UNLOCKED, ({ achievement }) => {
+  onBus(EVENTS.ACHIEVEMENT_UNLOCKED, ({ achievement }) => {
     showToast(`🏆 成就解锁: ${achievement.name}!`, true)
-    // 记录到本局新解锁列表
     if (!newAchievements.value.find(a => a.id === achievement.id)) {
       newAchievements.value.push(achievement)
     }
@@ -165,6 +172,7 @@ export function useGameState() {
     boss.ensureCalledOut() // 点名 Boss:抽完手牌后立刻点名
 
     screen.value = 'game'
+    SFX.gameStart()
     const modeName = game.mode === 'simple' ? '简单' : game.mode === 'hard' ? '困难' : '无尽'
     showToast(`第1层 ${modeName}模式`)
     saveSys.saveGame()
@@ -298,6 +306,7 @@ export function useGameState() {
     showModal.value = null
     shop.generate(!!game.bossDebuff)
     showModal.value = 'shop'
+    SFX.shopOpen()
     saveSys.saveGame()
   }
 
@@ -326,7 +335,7 @@ export function useGameState() {
   }
 
   function exitToMenu() {
-    saveSys.saveGame()
+    saveSys.saveGameNow()
     showModal.value = null
     screen.value = 'start'
   }
@@ -408,6 +417,7 @@ export function useGameState() {
     // 其他
     checkAchievements,
     saveGame: () => saveSys.saveGame(),
+    saveGameNow: () => saveSys.saveGameNow(),
     loadGame: () => saveSys.loadGame(),
     hasSave: () => saveSys.hasSave(),
     clearSave: () => saveSys.clearSave(),
@@ -416,5 +426,7 @@ export function useGameState() {
     // 计分
     evaluateHand: scoring.evaluateHand,
     calculateScore: scoring.calculateScore,
+    // 清理
+    cleanup: () => { busHandlers.forEach(([e, h]) => bus.off(e, h)) },
   }
 }

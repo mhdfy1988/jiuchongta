@@ -70,7 +70,7 @@
                   :confirm-mode="confirming === `joker-${idx}`"
                   @hover="(e, def) => showOwnedJokerTip(e, def, joker)"
                   @leave="hideTip"
-                  @click="handleSellJoker(idx)"
+                  @click="handleSell('joker', idx)"
                   @cancel="confirming = null"
                 />
               </div>
@@ -88,7 +88,7 @@
                   :confirm-mode="confirming === `cons-${idx}`"
                   @hover="(e, def) => showOwnedConsTip(e, def, cons.type)"
                   @leave="hideTip"
-                  @click="handleSellCons(idx)"
+                  @click="handleSell('cons', idx)"
                   @cancel="confirming = null"
                 />
               </div>
@@ -121,6 +121,7 @@ import JokerCard from './game/JokerCard.vue'
 import ConsumableCard from './game/ConsumableCard.vue'
 import Tooltip from './common/Tooltip.vue'
 import BaseModal from './common/BaseModal.vue'
+import { useTooltip } from '../composables/useTooltip.js'
 
 const props = defineProps({ state: Object })
 const game = props.state.game
@@ -136,81 +137,43 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 const rerollCost = computed(() => 1 + game.rerollCount)
 
 // ---------- Tooltip ----------
-const tip = reactive({
-  visible: false, x: 0, y: 0,
-  icon: '', name: '', subtitle: '', desc: '', extra: '',
-})
+const { tip, show: showTip, hide: hideTip } = useTooltip()
 
 function showJokerTip(e, def, cost) {
-  Object.assign(tip, {
-    visible: true,
-    x: e.clientX + 12, y: e.clientY,
-    icon: def.icon, name: def.name,
-    subtitle: `${RARITY_NAMES[def.rarity]} · $${cost}`,
-    desc: def.desc,
-    extra: '',
-  })
+  showTip(e, { icon: def.icon, name: def.name, subtitle: `${RARITY_NAMES[def.rarity]} · $${cost}`, desc: def.desc })
 }
 
 function showConsTip(e, def, type, cost) {
-  Object.assign(tip, {
-    visible: true,
-    x: e.clientX + 12, y: e.clientY,
-    icon: def.icon, name: def.name,
-    subtitle: `${type === 'tarot' ? '塔罗牌' : '星球牌'} · $${cost}`,
-    desc: def.desc,
-    extra: '',
-  })
+  showTip(e, { icon: def.icon, name: def.name, subtitle: `${type === 'tarot' ? '塔罗牌' : '星球牌'} · $${cost}`, desc: def.desc })
 }
 
 function showOwnedJokerTip(e, def, joker) {
   const sellPrice = Math.max(1, Math.floor(def.cost / 2))
   const locked = joker.data?.locked
-  Object.assign(tip, {
-    visible: true,
-    x: e.clientX + 12, y: e.clientY,
-    icon: def.icon, name: def.name,
-    subtitle: `${RARITY_NAMES[def.rarity]} · 卖出价 $${sellPrice}`,
-    desc: def.desc,
-    extra: locked ? '🔒 锁定，不可卖出' : '',
-  })
+  showTip(e, { icon: def.icon, name: def.name, subtitle: `${RARITY_NAMES[def.rarity]} · 卖出价 $${sellPrice}`, desc: def.desc, extra: locked ? '🔒 锁定，不可卖出' : '' })
 }
 
 function showOwnedConsTip(e, def, type) {
-  Object.assign(tip, {
-    visible: true,
-    x: e.clientX + 12, y: e.clientY,
-    icon: def.icon, name: def.name,
-    subtitle: type === 'tarot' ? '塔罗牌' : '星球牌',
-    desc: def.desc,
-    extra: '',
-  })
+  showTip(e, { icon: def.icon, name: def.name, subtitle: type === 'tarot' ? '塔罗牌' : '星球牌', desc: def.desc })
 }
-
-function hideTip() { tip.visible = false }
 
 // ---------- 卖出 ----------
 
-function handleSellJoker(idx) {
-  const joker = game.jokers[idx]
-  if (joker?.data?.locked) {
-    props.state.showToast('锁定的小丑不能卖出!')
-    return
+function handleSell(type, idx) {
+  const key = `${type}-${idx}`
+  if (type === 'joker') {
+    const joker = game.jokers[idx]
+    if (joker?.data?.locked) {
+      props.state.showToast('锁定的小丑不能卖出!')
+      return
+    }
   }
-  if (confirming.value === `joker-${idx}`) {
-    props.state.sellJoker(idx)
+  if (confirming.value === key) {
+    if (type === 'joker') props.state.sellJoker(idx)
+    else props.state.sellConsumable(idx)
     confirming.value = null
   } else {
-    confirming.value = `joker-${idx}`
-  }
-}
-
-function handleSellCons(idx) {
-  if (confirming.value === `cons-${idx}`) {
-    props.state.sellConsumable(idx)
-    confirming.value = null
-  } else {
-    confirming.value = `cons-${idx}`
+    confirming.value = key
   }
 }
 

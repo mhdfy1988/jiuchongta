@@ -113,10 +113,10 @@ export const JOKERS = [
     desc:'人头牌计分效果额外触发1次', effect: (ctx) => {}, retriggerFace: 1 },
   { id:'blueprint', name:'蓝图', icon:'📐', rarity:'legend', cost:10, type:'utility', temp:false,
     desc:'复制右侧第1张小丑效果',
-    effect: (ctx) => { const idx = ctx.game.jokers.indexOf(ctx.joker); const right = ctx.game.jokers[idx+1]; if (right) { const def = JOKERS.find(j => j.id === right.id); if (def && def.effect && def.type !== 'utility') { const tempCtx = {...ctx, joker: right}; def.effect(tempCtx); ctx.chips = tempCtx.chips; ctx.mult = tempCtx.mult; } } } },
+    effect: (ctx) => { const idx = ctx.game.jokers.indexOf(ctx.joker); const right = ctx.game.jokers[idx+1]; if (right) { const def = _JOKER_LOOKUP.get(right.id); if (def && def.effect && def.type !== 'utility') { const tempCtx = {...ctx, joker: right}; def.effect(tempCtx); ctx.chips = tempCtx.chips; ctx.mult = tempCtx.mult; } } } },
   { id:'brainstorm', name:'头脑风暴', icon:'🧠', rarity:'legend', cost:10, type:'utility', temp:false,
     desc:'复制最左侧小丑效果',
-    effect: (ctx) => { const leftmost = ctx.game.jokers[0]; if (leftmost && leftmost !== ctx.joker) { const def = JOKERS.find(j => j.id === leftmost.id); if (def && def.effect && def.type !== 'utility') { const tempCtx = {...ctx, joker: leftmost}; def.effect(tempCtx); ctx.chips = tempCtx.chips; ctx.mult = tempCtx.mult; } } } },
+    effect: (ctx) => { const leftmost = ctx.game.jokers[0]; if (leftmost && leftmost !== ctx.joker) { const def = _JOKER_LOOKUP.get(leftmost.id); if (def && def.effect && def.type !== 'utility') { const tempCtx = {...ctx, joker: leftmost}; def.effect(tempCtx); ctx.chips = tempCtx.chips; ctx.mult = tempCtx.mult; } } } },
   { id:'neighbor', name:'邻座', icon:'🪑', rarity:'legend', cost:10, type:'utility', temp:false,
     desc:'四条+第5张差1 变五条', effect: (ctx) => {}, autoFive: true },
 
@@ -134,3 +134,6 @@ export const JOKERS = [
   { id:'disguise', name:'变装券', icon:'🎭', rarity:'legend', cost:10, type:'temp', temp:true,
     desc:'指定1张打出牌变同花色任意点数', effect: (ctx) => {}, consumeOnUse: true },
 ]
+
+// 内部 O(1) 查找表，避免 Blueprint/Brainstorm 用 JOKERS.find O(n) 查找
+const _JOKER_LOOKUP = new Map(JOKERS.map(j => [j.id, j]))

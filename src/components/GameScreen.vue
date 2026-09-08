@@ -155,14 +155,14 @@
       <div class="controls">
         <button class="btn btn-play" :disabled="game.animating || game.selected.length === 0 || game.handsLeft <= 0" @click="state.playHand()">▶ 出牌</button>
         <button class="btn btn-discard" :disabled="game.animating || game.selected.length === 0 || game.discardsLeft <= 0" @click="state.discardCards()">✕ 弃牌</button>
-        <button class="btn btn-sort" @click="state.sortByRank()">排序(点数)</button>
-        <button class="btn btn-sort" @click="state.sortBySuit()">排序(花色)</button>
+        <button class="btn btn-sort" @click="sortRank">排序(点数)</button>
+        <button class="btn btn-sort" @click="sortSuit">排序(花色)</button>
       </div>
     </main>
 
     <!-- 右侧牌堆 -->
     <aside class="deck-side">
-      <div class="deck-pile" @click="state.showModal.value = 'deckview'">
+      <div class="deck-pile" @click="openDeck">
         <div class="deck-back"></div>
         <div class="deck-count">{{ game.deck.length }}</div>
       </div>
@@ -237,10 +237,11 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive, watch } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { getJoker } from '../utils/gameData.js'
 import { getConsumableDef } from '../utils/gameData.js'
-import { isBossLevel, RARITY_NAMES } from '../data/constants.js'
+import { isBossLevelForGame, RARITY_NAMES } from '../data/constants.js'
+import { useTooltip } from '../composables/useTooltip.js'
 import JokerCard from './game/JokerCard.vue'
 import ConsumableCard from './game/ConsumableCard.vue'
 import PlayingCard from './game/PlayingCard.vue'
@@ -260,10 +261,7 @@ const props = defineProps({ state: Object })
 const game = props.state.game
 const soundEnabled = ref(true)
 
-const isBoss = computed(() => {
-  const lvl = game.mode === 'endless' ? ((game.level - 1) % 9) + 1 : game.level
-  return isBossLevel(lvl)
-})
+const isBoss = computed(() => isBossLevelForGame(game))
 
 const progressPercent = computed(() => {
   return Math.min(100, (game.levelScore / game.targetScore) * 100)
@@ -297,6 +295,10 @@ watch(() => game.levelScore, (to, from) => {
   scoreRollRaf = requestAnimationFrame(step)
 })
 
+onUnmounted(() => {
+  if (scoreRollRaf) cancelAnimationFrame(scoreRollRaf)
+})
+
 const previewHand = computed(() => {
   if (game.selected.length === 0) return null
   const cards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
@@ -321,11 +323,12 @@ function bonusPopupsFor(idx) {
   return props.state.jokerBonusPopups.value.filter(p => p.jokerIdx === idx)
 }
 
+function sortRank() { props.state.sortByRank(); props.state.SFX.sort() }
+function sortSuit() { props.state.sortBySuit(); props.state.SFX.sort() }
+function openDeck() { props.state.showModal.value = 'deckview'; props.state.SFX.deckClick() }
+
 // ---------- Tooltip ----------
-const tip = reactive({
-  visible: false, x: 0, y: 0,
-  icon: '', name: '', subtitle: '', desc: '', extra: '',
-})
+const { tip, show: showTip, hide: hideTip } = useTooltip()
 
 function showJokerTip(e, def, joker) {
   if (!def) return
@@ -334,9 +337,7 @@ function showJokerTip(e, def, joker) {
     : def.type === 'mult' ? '倍率'
     : def.type === 'xmult' ? '乘倍率'
     : def.type === 'utility' ? '功能' : '临时'
-  Object.assign(tip, {
-    visible: true,
-    x: e.clientX + 12, y: e.clientY,
+  showTip(e, {
     icon: def.icon, name: def.name,
     subtitle: `${typeLabel} · $${def.cost}`,
     desc: def.desc,
@@ -346,17 +347,12 @@ function showJokerTip(e, def, joker) {
 
 function showConsTip(e, def, type) {
   if (!def) return
-  Object.assign(tip, {
-    visible: true,
-    x: e.clientX + 12, y: e.clientY,
+  showTip(e, {
     icon: def.icon, name: def.name,
     subtitle: `${type === 'tarot' ? '塔罗牌' : '星球牌'} · $${def.cost}`,
     desc: def.desc,
-    extra: '',
   })
 }
-
-function hideTip() { tip.visible = false }
 </script>
 
 <style scoped>

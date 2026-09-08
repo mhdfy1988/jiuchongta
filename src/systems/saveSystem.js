@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, toRaw } from 'vue'
 import { bus, EVENTS } from '../utils/eventBus.js'
 import { storage } from '../utils/storage.js'
 import { SAVE_KEY, SAVE_VERSION } from '../data/constants.js'
@@ -11,6 +11,7 @@ const STATS_KEY = 'pokerRoguelikeStats'
  */
 export function createSaveSystem(game, bus) {
   const hasSaveData = ref(false)
+  let saveTimer = null
 
   function updateFlag() {
     hasSaveData.value = storage.has(SAVE_KEY)
@@ -19,18 +20,26 @@ export function createSaveSystem(game, bus) {
 
   // ---------- 游戏存档 ----------
 
-  function saveGame() {
-    const saveData = {
-      ...game,
-      __version: SAVE_VERSION,
-    }
-    saveData.playedHandTypes = [...game.playedHandTypes]
-    // silencedJoker 是对象引用，直接序列化会断裂；改存下标，读档时再还原
-    const silIdx = game.jokers.indexOf(game.silencedJoker)
+  // 立即写入（用于过关、退出等关键节点）
+  function saveGameNow() {
+    const raw = toRaw(game)
+    const saveData = JSON.parse(JSON.stringify(raw))
+    saveData.__version = SAVE_VERSION
+    saveData.playedHandTypes = [...raw.playedHandTypes]
+    const silIdx = raw.jokers.indexOf(raw.silencedJoker)
     saveData.silencedJoker = silIdx >= 0 ? silIdx : null
     storage.set(SAVE_KEY, saveData)
     updateFlag()
     bus.emit(EVENTS.SAVE_UPDATED)
+  }
+
+  // 防抖写入（300ms 内多次调用只写一次）
+  function saveGame() {
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      saveTimer = null
+      saveGameNow()
+    }, 300)
   }
 
   function loadGame() {
@@ -78,6 +87,7 @@ export function createSaveSystem(game, bus) {
   return {
     hasSaveData,
     saveGame,
+    saveGameNow,
     loadGame,
     clearSave,
     hasSave,
