@@ -5,7 +5,7 @@
       <h1 class="game-title">九层塔</h1>
       <p class="game-subtitle">扑克肉鸽</p>
       <div class="menu-buttons">
-        <button class="menu-btn btn-start" @click="view = 'select'">▶ 开始游戏</button>
+        <button class="menu-btn btn-start" @click="enterSelect">▶ 开始游戏</button>
         <button v-if="state.hasSave()" class="menu-btn btn-continue" @click="continueGame">📂 继续游戏</button>
         <button class="menu-btn btn-collection" @click="state.showModal.value = 'collection'">📖 卡牌图鉴</button>
         <button class="menu-btn btn-ach" @click="state.showModal.value = 'achievements'">🏆 成就</button>
@@ -92,6 +92,12 @@ function selectMode(mode) {
   if (isModeLocked(mode)) return
   props.state.selectedMode.value = mode.id
   props.state.SFX.button()
+}
+
+function enterSelect() {
+  props.state.selectedChar.value = null
+  props.state.selectedMode.value = null
+  view.value = 'select'
 }
 
 function continueGame() {
