@@ -149,6 +149,7 @@ function showConsTip(e, def, type, cost) {
 }
 
 function showOwnedJokerTip(e, def, joker) {
+  if (confirming.value) return // 卖出确认中不弹悬浮框，避免遮挡确认/取消按钮
   const sellPrice = Math.max(1, Math.floor(def.cost / 2))
   const locked = joker.data?.locked
   const extras = []
@@ -158,6 +159,7 @@ function showOwnedJokerTip(e, def, joker) {
 }
 
 function showOwnedConsTip(e, def, type) {
+  if (confirming.value) return
   showTip(e, { icon: def.icon, name: def.name, subtitle: type === 'tarot' ? '塔罗牌' : '星球牌', desc: def.desc })
 }
 
@@ -178,6 +180,7 @@ function handleSell(type, idx) {
     confirming.value = null
   } else {
     confirming.value = key
+    hideTip() // 进入确认态时立即收起悬浮框
   }
 }
 
