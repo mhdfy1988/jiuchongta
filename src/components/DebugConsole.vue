@@ -255,9 +255,8 @@ function historyNext() {
   z-index: 900;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 8vh;
 }
 .debug-panel {
   width: 560px;
