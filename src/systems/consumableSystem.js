@@ -70,17 +70,24 @@ export function createConsumableSystem(game, bus, cardSystem) {
     cardSystem.clearSelection()
   }
 
+  // 统一获取 pending 消耗品信息（下标 + 定义），避免重复 indexOf
+  function getPendingInfo() {
+    if (game.pendingConsumable === null) return null
+    const idx = game.consumables.indexOf(game.pendingConsumable)
+    if (idx < 0) return null
+    const cons = game.consumables[idx]
+    return { idx, cons, def: getConsumableDef(cons.type, cons.id) }
+  }
+
   // 确认使用塔罗牌
   function confirmUse() {
-    if (game.pendingConsumable === null) return false
-    const idx = game.consumables.indexOf(game.pendingConsumable)
-    if (idx < 0) {
+    const info = getPendingInfo()
+    if (!info) {
       game.pendingConsumable = null
       game.pendingSuit = null
       return false
     }
-    const cons = game.consumables[idx]
-    const def = getConsumableDef(cons.type, cons.id)
+    const { idx, cons, def } = info
     if (!def) return false
 
     const selectedCards = cardSystem.getSelectedCards()
@@ -89,9 +96,7 @@ export function createConsumableSystem(game, bus, cardSystem) {
     const result = def.use(game, selectedCards)
 
     if (result === 'destroy') {
-      if (selectedCards[0]) {
-        cardSystem.removeCardById(selectedCards[0].id)
-      }
+      if (selectedCards[0]) cardSystem.removeCardById(selectedCards[0].id)
     } else if (result === 'choose_suit') {
       if (!game.pendingSuit) return { error: '请先选择花色' }
       selectedCards[0].suit = game.pendingSuit
@@ -109,11 +114,7 @@ export function createConsumableSystem(game, bus, cardSystem) {
   }
 
   function getPendingDef() {
-    if (game.pendingConsumable === null) return null
-    const idx = game.consumables.indexOf(game.pendingConsumable)
-    if (idx < 0) return null
-    const cons = game.consumables[idx]
-    return getConsumableDef(cons.type, cons.id)
+    return getPendingInfo()?.def ?? null
   }
 
   function isPending() {

@@ -70,12 +70,9 @@ export function createLevelSystem(game, bus) {
     SFX.win()
     const boss = isBossLevel(getEffectiveLevel())
     const exceed = game.levelScore >= game.targetScore * 2
-    let reward = 0
-    if (boss) reward += exceed ? 5 : 4
-    else reward += exceed ? 5 : 3
-    reward += game.handsLeft
+    const baseReward = exceed ? 5 : (boss ? 4 : 3)
     const interest = Math.floor(game.levelStartMoney * 0.2)
-    reward += interest
+    const reward = baseReward + game.handsLeft + interest
     game.money += reward
     bus.emit(EVENTS.LEVEL_WON, { reward, boss, exceed })
   }

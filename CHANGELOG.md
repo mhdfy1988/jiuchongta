@@ -1,5 +1,25 @@
 # 更新日志
 
+## [1.2.0] - 2026-09-09
+
+### 优化
+
+- 代码审查修复：高优4项 + 中优8项 + 低优6项
+  - CSS 命名统一（rarity-legend 全局一致）
+  - Joker ID 缓存失效修复（去掉模块级缓存，每次构建新 Set）
+  - ScoreAnimation 空步骤保护
+  - GameScreen watch RAF 在 onUnmounted 取消
+  - 数据查找统一（RunStatsModal/ConsumableOverlay 用 gameData Map）
+  - Tooltip 逻辑抽公共 useTooltip composable
+  - Boss 层判断抽公共 isBossLevelForGame
+  - ShopModal 卖出逻辑合并为 handleSell
+  - cardUtils 排序常量提取为模块级
+  - useGameState bus 监听统一清理
+  - saveSystem toRaw 改为 JSON 深拷贝
+- 低优重构：Boss if-else 改策略表、商店买卖抽公共流程、消耗品 pending 查找合并
+- 新增 7 个音效：抽牌/Boss出场/商店/游戏开始/排序/牌堆/过关弹窗
+- 性能优化：存档防抖 300ms、Joker 查找 O(1)、cardUtils 常量模块级
+
 ## [1.1.1] - 2026-09-08
 
 ### 修复

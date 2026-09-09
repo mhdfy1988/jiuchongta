@@ -23,22 +23,18 @@ export function createAchievementSystem(statsRef, saveStats, bus) {
     saveStats(stats)
   }
 
-  // 快捷：记录一个统计值并检查成就
-  function recordStat(key, value) {
+  // 统一统计更新：mode='max' 取最大值，否则直接赋值
+  function updateStat(key, value, mode = 'set') {
     const stats = statsRef.value
-    stats[key] = value
-    checkAll()
-  }
-
-  function recordMax(key, value) {
-    const stats = statsRef.value
-    stats[key] = Math.max(stats[key] || 0, value)
+    if (mode === 'max') stats[key] = Math.max(stats[key] || 0, value)
+    else stats[key] = value
     checkAll()
   }
 
   return {
     checkAll,
-    recordStat,
-    recordMax,
+    recordStat: (k, v) => updateStat(k, v, 'set'),
+    recordMax: (k, v) => updateStat(k, v, 'max'),
+    updateStat,
   }
 }

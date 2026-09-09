@@ -44,17 +44,17 @@ export function createJokerSystem(game, bus) {
   }
 
   function triggerOnPlay(handType) {
-    game.jokers.forEach(joker => {
+    for (const joker of game.jokers) {
       const def = getJoker(joker.id)
-      if (def?.onPlay) def.onPlay(joker, handType)
-    })
+      def?.onPlay?.(joker, handType)
+    }
   }
 
   function triggerOnDiscard(cards, handType) {
-    game.jokers.forEach(joker => {
+    for (const joker of game.jokers) {
       const def = getJoker(joker.id)
-      if (def?.onDiscard) def.onDiscard(cards, joker, handType)
-    })
+      def?.onDiscard?.(cards, joker, handType)
+    }
   }
 
   // 清理消耗型小丑（打完就消失的）

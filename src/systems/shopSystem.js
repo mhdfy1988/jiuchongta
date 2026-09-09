@@ -57,30 +57,27 @@ export function createShopSystem(game, bus) {
 
   // ---------- 购买 ----------
 
-  function buyJoker(idx) {
-    const item = items.value[idx]
+  function buyItem(list, idx, type, maxSlots, makeEntry) {
+    const item = list.value[idx]
     if (!item || item.sold) return false
     if (game.money < item.def.cost) return false
-    if (game.jokers.length >= 6) return false
+    const target = type === 'joker' ? game.jokers : game.consumables
+    if (target.length >= maxSlots) return false
     game.money -= item.def.cost
-    game.jokers.push({ id: item.def.id, data: { stacks: 0 } })
+    target.push(makeEntry(item.def))
     item.sold = true
     SFX.buy()
-    bus.emit(EVENTS.ITEM_BOUGHT, { type: 'joker', item })
+    bus.emit(EVENTS.ITEM_BOUGHT, { type, item })
     return true
+  }
+
+  function buyJoker(idx) {
+    return buyItem(items, idx, 'joker', 6, (def) => ({ id: def.id, data: { stacks: 0 } }))
   }
 
   function buyConsumable(idx) {
     const item = consumables.value[idx]
-    if (!item || item.sold) return false
-    if (game.money < item.def.cost) return false
-    if (game.consumables.length >= 2) return false
-    game.money -= item.def.cost
-    game.consumables.push({ id: item.def.id, type: item.type })
-    item.sold = true
-    SFX.buy()
-    bus.emit(EVENTS.ITEM_BOUGHT, { type: 'consumable', item })
-    return true
+    return buyItem(consumables, idx, 'consumable', 2, (def) => ({ id: def.id, type: item?.type || 'tarot' }))
   }
 
   // ---------- 刷新 ----------

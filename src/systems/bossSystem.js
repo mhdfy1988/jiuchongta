@@ -36,28 +36,35 @@ export function createBossSystem(game, bus) {
 
   // ---------- 效果应用 ----------
 
+  // 效果策略表：id → 处理函数，替代 if-else 链
+  const EFFECT_HANDLERS = {
+    shackles: () => { game.handSize = 7 },
+    no_discard: () => { game.discardsLeft = 0 },
+    pinhole: () => { game.handsLeft = 1 },
+    high_wall: (opts) => { if (opts.scaleTarget) game.targetScore = Math.floor(game.targetScore * 1.5) },
+    color_cut: () => {
+      if (!game.bossDebuff.disabledSuit) game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
+    },
+    lockdown: () => {
+      if (!game.bossDebuff.disabledHand) {
+        const types = ['同花顺','同花','顺子','葫芦','四条','一对']
+        game.bossDebuff.disabledHand = types[Math.floor(Math.random() * types.length)]
+      }
+    },
+    silence: () => {
+      if (game.jokers.length > 0 && !game.silencedJoker) {
+        const permanent = game.jokers.filter(j => !j.data?.locked)
+        if (permanent.length > 0) game.silencedJoker = permanent[Math.floor(Math.random() * permanent.length)]
+      }
+    },
+    called_out: () => rollCalledOut(),
+  }
+
   // scaleTarget: high_wall 目标分倍率只在进入 Boss 层时乘一次，复活时跳过
   function applyEffects({ scaleTarget = true } = {}) {
     if (!game.bossDebuff) return
-    const id = game.bossDebuff.id
-
-    if (id === 'shackles') game.handSize = 7
-    if (id === 'no_discard') game.discardsLeft = 0
-    if (id === 'pinhole') game.handsLeft = 1
-    if (scaleTarget && id === 'high_wall') game.targetScore = Math.floor(game.targetScore * 1.5)
-
-    if (id === 'color_cut' && !game.bossDebuff.disabledSuit) {
-      game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
-    }
-    if (id === 'lockdown' && !game.bossDebuff.disabledHand) {
-      const types = ['同花顺','同花','顺子','葫芦','四条','一对']
-      game.bossDebuff.disabledHand = types[Math.floor(Math.random() * types.length)]
-    }
-    if (id === 'silence' && game.jokers.length > 0 && !game.silencedJoker) {
-      const permanent = game.jokers.filter(j => !j.data?.locked)
-      if (permanent.length > 0) game.silencedJoker = permanent[Math.floor(Math.random() * permanent.length)]
-    }
-    if (id === 'called_out') rollCalledOut()
+    const handler = EFFECT_HANDLERS[game.bossDebuff.id]
+    if (handler) handler({ scaleTarget })
   }
 
   // ---------- 点名 ----------
@@ -92,6 +99,28 @@ export function createBossSystem(game, bus) {
   // ---------- 出牌校验 ----------
   // 返回 false 表示通过，返回字符串表示被阻止（带提示信息）
 
+  const VALIDATE_HANDLERS = {
+    only_one: (type) => {
+      if (!game.lockedHandType) { game.lockedHandType = type; return false }
+      if (type !== game.lockedHandType) return `唯一: 只能打${game.lockedHandType}!`
+      return false
+    },
+    lockdown: (type, debuff) => {
+      if (!debuff.disabledHand) return false
+      const dh = debuff.disabledHand
+      if (type === dh
+        || (dh === '一对' && type === '两对')
+        || (dh === '同花顺' && type === '皇家同花顺')) {
+        return `封锁: ${dh}被禁用!`
+      }
+      return false
+    },
+    ocd: () => {
+      if (game.selected.length < 5) return '强迫症: 必须打出5张!'
+      return false
+    },
+  }
+
   function validatePlay(resultType) {
     const debuff = game.bossDebuff
     if (!debuff) return false
@@ -99,21 +128,8 @@ export function createBossSystem(game, bus) {
     const calledMsg = checkCalledOut()
     if (calledMsg) return calledMsg
 
-    if (debuff.id === 'only_one') {
-      if (!game.lockedHandType) game.lockedHandType = resultType
-      else if (resultType !== game.lockedHandType) return `唯一: 只能打${game.lockedHandType}!`
-    }
-    if (debuff.id === 'lockdown' && debuff.disabledHand) {
-      const dh = debuff.disabledHand
-      if (resultType === dh
-        || (dh === '一对' && resultType === '两对')
-        || (dh === '同花顺' && resultType === '皇家同花顺')) {
-        return `封锁: ${dh}被禁用!`
-      }
-    }
-    if (debuff.id === 'ocd' && game.selected.length < 5) {
-      return '强迫症: 必须打出5张!'
-    }
+    const handler = VALIDATE_HANDLERS[debuff.id]
+    if (handler) return handler(resultType, debuff)
     return false
   }
 
