@@ -225,6 +225,9 @@
     <!-- 消耗品使用覆盖层 -->
     <ConsumableOverlay v-if="game.pendingConsumable !== null" :state="state" />
 
+    <!-- 调试控制台（` 键开关） -->
+    <DebugConsole :state="state" />
+
     <!-- 模态框 -->
     <LevelCompleteModal v-if="state.showModal.value === 'levelcomplete'" :state="state" />
     <ShopModal v-if="state.showModal.value === 'shop'" :state="state" />
@@ -257,6 +260,7 @@ import CardCollectionModal from './CardCollectionModal.vue'
 import RunStatsModal from './RunStatsModal.vue'
 import AchievementsModal from './AchievementsModal.vue'
 import ScoreAnimation from './ScoreAnimation.vue'
+import DebugConsole from './DebugConsole.vue'
 
 const props = defineProps({ state: Object })
 const game = props.state.game
