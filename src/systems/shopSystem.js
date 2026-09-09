@@ -72,7 +72,7 @@ export function createShopSystem(game, bus) {
   }
 
   function buyJoker(idx) {
-    return buyItem(items, idx, 'joker', 6, (def) => ({ id: def.id, data: { stacks: 0 } }))
+    return buyItem(items, idx, 'joker', 6, (def) => ({ id: def.id, data: def.initData ? def.initData() : { stacks: 0 } }))
   }
 
   function buyConsumable(idx) {

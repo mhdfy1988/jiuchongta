@@ -109,6 +109,7 @@
             :temporary="getJokerDef(joker)?.temp"
             :interactive="false"
             :stacks="joker.data?.stacks || 0"
+            :suit="joker.data?.suit || ''"
             :show-delete="!joker.data?.locked"
             :bonus-popups="bonusPopupsFor(idx)"
             @delete="state.deleteJoker(idx)"
@@ -333,15 +334,19 @@ const { tip, show: showTip, hide: hideTip } = useTooltip()
 function showJokerTip(e, def, joker) {
   if (!def) return
   const stacks = joker.data?.stacks
+  const suit = joker.data?.suit
   const typeLabel = def.type === 'chips' ? '底分'
     : def.type === 'mult' ? '倍率'
     : def.type === 'xmult' ? '乘倍率'
     : def.type === 'utility' ? '功能' : '临时'
+  const extras = []
+  if (suit) extras.push(`指定花色: ${suit}`)
+  if (stacks) extras.push(`叠加: ${stacks}`)
   showTip(e, {
     icon: def.icon, name: def.name,
     subtitle: `${typeLabel} · $${def.cost}`,
     desc: def.desc,
-    extra: stacks ? `叠加: ${stacks}` : '',
+    extra: extras.join('  |  '),
   })
 }
 

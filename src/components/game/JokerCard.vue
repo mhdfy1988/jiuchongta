@@ -23,6 +23,13 @@
     <!-- 叠加层数 -->
     <div v-if="stacks > 0" class="j-stacks">{{ stacks }}</div>
 
+    <!-- 指定花色角标（城堡等） -->
+    <div
+      v-if="suit"
+      class="j-suit-badge"
+      :class="{ 'suit-red': suit === '♥' || suit === '♦' }"
+    >{{ suit }}</div>
+
     <!-- 删除按钮 -->
     <div v-if="showDelete && !locked" class="j-delete" @click.stop="$emit('delete')">$</div>
 
@@ -55,6 +62,7 @@ const props = defineProps({
   confirmMode: { type: Boolean, default: false },
   interactive: { type: Boolean, default: true },
   stacks: { type: Number, default: 0 },
+  suit: { type: String, default: '' },
   showDelete: { type: Boolean, default: false },
   bonusPopups: { type: Array, default: () => [] },
 })
@@ -125,6 +133,21 @@ function handleClick(e) {
   border-radius: 4px 0 4px 0;
   z-index: 2;
 }
+
+/* 指定花色角标（城堡等），放左下避免和左上叠加层数角标冲突 */
+.j-suit-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  z-index: 2;
+  color: #9db4d0;
+  text-shadow: 0 0 6px currentColor;
+  pointer-events: none;
+}
+.j-suit-badge.suit-red { color: #ff6b81; }
 
 /* 删除按钮 */
 .j-delete {

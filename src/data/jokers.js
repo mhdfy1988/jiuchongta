@@ -16,6 +16,7 @@ export const JOKERS = [
     effect: (ctx) => { ctx.chips += ctx.scoringCards.filter(c => FACE_CARDS.includes(c.rank)).length * 35; } },
   { id:'castle', name:'城堡', icon:'🏰', rarity:'rare', cost:5, type:'chips', temp:false,
     desc:'弃掉指定花色1张 永久+10底分',
+    initData: () => ({ stacks: 0, suit: SUITS[Math.floor(Math.random()*4)] }),
     effect: (ctx) => { ctx.chips += ctx.joker.data.stacks || 0; },
     onDiscard: (cards, joker) => { const suit = joker.data.suit; if (!suit) { joker.data.suit = SUITS[Math.floor(Math.random()*4)]; } cards.forEach(c => { if (c.suit === joker.data.suit) joker.data.stacks = (joker.data.stacks||0) + 10; }); } },
   { id:'stone', name:'石头小丑', icon:'🪨', rarity:'rare', cost:5, type:'chips', temp:false,

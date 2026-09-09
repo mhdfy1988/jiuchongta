@@ -67,6 +67,7 @@
                   :def="getJokerDef(joker)"
                   size="md"
                   :locked="joker.data?.locked"
+                  :suit="joker.data?.suit || ''"
                   :confirm-mode="confirming === `joker-${idx}`"
                   @hover="(e, def) => showOwnedJokerTip(e, def, joker)"
                   @leave="hideTip"
@@ -150,7 +151,10 @@ function showConsTip(e, def, type, cost) {
 function showOwnedJokerTip(e, def, joker) {
   const sellPrice = Math.max(1, Math.floor(def.cost / 2))
   const locked = joker.data?.locked
-  showTip(e, { icon: def.icon, name: def.name, subtitle: `${RARITY_NAMES[def.rarity]} · 卖出价 $${sellPrice}`, desc: def.desc, extra: locked ? '🔒 锁定，不可卖出' : '' })
+  const extras = []
+  if (joker.data?.suit) extras.push(`指定花色: ${joker.data.suit}`)
+  if (locked) extras.push('🔒 锁定，不可卖出')
+  showTip(e, { icon: def.icon, name: def.name, subtitle: `${RARITY_NAMES[def.rarity]} · 卖出价 $${sellPrice}`, desc: def.desc, extra: extras.join('  |  ') })
 }
 
 function showOwnedConsTip(e, def, type) {
