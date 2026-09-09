@@ -158,6 +158,7 @@
         <button class="btn btn-discard" :disabled="game.animating || game.selected.length === 0 || game.discardsLeft <= 0" @click="state.discardCards()">✕ 弃牌</button>
         <button class="btn btn-sort" @click="sortRank">排序(点数)</button>
         <button class="btn btn-sort" @click="sortSuit">排序(花色)</button>
+        <button class="btn btn-clear" :disabled="game.animating || game.selected.length === 0" @click="state.cards.clearSelection()">↺ 清空选择</button>
       </div>
     </main>
 
