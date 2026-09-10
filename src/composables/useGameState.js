@@ -346,6 +346,7 @@ export function useGameState() {
   }
 
   function discardCards() {
+    if (game.animating) return
     if (consumables.isPending()) { showToast('请先完成消耗品使用'); return }
     if (game.selected.length === 0) { showToast('请选择要弃的牌'); return }
     if (game.discardsLeft <= 0) { showToast('没有换牌次数了!'); return }
@@ -446,12 +447,14 @@ export function useGameState() {
     shop.reroll()
     stats.value.totalRerolls = (stats.value.totalRerolls || 0) + 1
     achievements.checkAll()
+    saveSys.saveGame()
   }
   function buyConsumable(idx) { shop.buyConsumable(idx) }
 
   // ========== 消耗品 API（兼容旧调用） ==========
 
   function useConsumable(idx) {
+    if (game.animating) return
     if (game.bossDebuff?.id === 'no_consumable') { showToast('禁耗: 本层禁止使用消耗品!'); return }
     const result = consumables.startUse(idx)
     if (result?.applied) {
@@ -468,6 +471,7 @@ export function useGameState() {
   function pickSuit(suit) { consumables.pickSuit(suit) }
   function pickOption(value) { consumables.pickOption(value) }
   function confirmConsumable() {
+    if (game.animating) return
     const result = consumables.confirmUse()
     if (result?.error) showToast(result.error)
     else if (result?.success) {

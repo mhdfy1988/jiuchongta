@@ -93,7 +93,7 @@ export function createScoringSystem() {
     } else if (counts[0] === 3 && counts[1] === 2) {
       handType = '葫芦'
       scoringCards = cards.filter(c => rankCount[c.rank] >= 2)
-    } else if (isFlush && cards.length >= 5) {
+    } else if (isFlush && cards.length >= (hasFourFingers ? 4 : 5)) {
       handType = '同花'
       scoringCards = cards.slice().sort((a, b) => RANK_VALUES[b.rank] - RANK_VALUES[a.rank]).slice(0, 5)
     } else if (isStraight && straightCards) {

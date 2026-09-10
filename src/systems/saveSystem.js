@@ -55,6 +55,7 @@ export function createSaveSystem(game, bus) {
     Object.assign(game, data)
     game.playedHandTypes = data.playedHandTypes || []
     game.selected = [] // 读档后清空选中
+    game.animating = false // 防抖存档可能在出牌动画中写入 animating=true，读档必须复位否则无法出牌
     game.pendingConsumable = null // 待选状态不随存档恢复
     game.pendingSuit = null
     game.pendingOption = null

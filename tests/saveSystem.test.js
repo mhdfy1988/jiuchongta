@@ -87,6 +87,14 @@ describe('SaveSystem', () => {
     expect(game.selected).toEqual([])
   })
 
+  it('loadGame 复位 animating，防止动画中存档导致读档卡死', () => {
+    game.animating = true
+    save.saveGameNow()
+    game.animating = false
+    save.loadGame()
+    expect(game.animating).toBe(false)
+  })
+
   it('saveStats / loadStats 持久化统计数据', () => {
     const stats = { totalGames: 5, maxLevel: 3 }
     save.saveStats(stats)

@@ -94,6 +94,25 @@ describe('牌型判定', () => {
     const r = evaluateHand(cards, fakeGame())
     expect(r.type).not.toBe('五条')
   })
+
+  it('四指：4张同花色算同花', () => {
+    const cards = makeCards([['2','♠'],['5','♠'],['9','♠'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame({ jokers: [{ id: 'four_fingers', data: {} }] }))
+    expect(r.type).toBe('同花')
+    expect(r.scoringCards.length).toBe(4)
+  })
+
+  it('无四指：4张同花色不算同花', () => {
+    const cards = makeCards([['2','♠'],['5','♠'],['9','♠'],['K','♠']])
+    const r = evaluateHand(cards, fakeGame())
+    expect(r.type).toBe('高牌')
+  })
+
+  it('四指：4张同花顺仍算同花顺', () => {
+    const cards = makeCards([['2','♠'],['3','♠'],['4','♠'],['5','♠']])
+    const r = evaluateHand(cards, fakeGame({ jokers: [{ id: 'four_fingers', data: {} }] }))
+    expect(r.type).toBe('同花顺')
+  })
 })
 
 describe('计分', () => {
