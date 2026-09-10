@@ -91,8 +91,10 @@ function isUnlocked(id) {
 }
 .ach-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
   gap: 10px;
+  min-height: calc(3 * 172px + 20px);
 }
 .ach-card {
   display: flex; flex-direction: column; align-items: center; text-align: center;
