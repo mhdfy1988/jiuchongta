@@ -70,6 +70,7 @@ export function createSaveSystem(game, bus) {
   }
 
   function clearSave() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
     storage.remove(SAVE_KEY)
     updateFlag()
   }
