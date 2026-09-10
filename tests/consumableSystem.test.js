@@ -208,10 +208,12 @@ describe('ConsumableSystem', () => {
     game.consumables.push({ id: 'disguise', type: 'voucher' })
     cons.startUse(0)
     cards.selectCard(game.hand[0].id)
-    cons.pickOption('A')
+    // 选一个和原牌不同的点数
+    const targetRank = originalRank === 'A' ? 'K' : 'A'
+    cons.pickOption(targetRank)
     const result = cons.confirmUse()
     expect(result.success).toBe(true)
-    expect(game.hand[0].rank).toBe('A')
+    expect(game.hand[0].rank).toBe(targetRank)
     expect(game.hand[0].rank).not.toBe(originalRank)
   })
 

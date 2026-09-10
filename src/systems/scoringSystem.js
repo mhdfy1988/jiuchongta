@@ -216,7 +216,7 @@ export function createScoringSystem() {
 
     chips = ctx.chips
     mult = ctx.mult
-    const total = Math.floor(chips * mult * ctx.finalMult)
+    const total = Math.max(0, Math.floor(chips * mult * ctx.finalMult))
 
     // no_repeat: 重复牌型不计分
     let finalTotal = total

@@ -38,6 +38,7 @@ export function useGameState() {
     animating: false, consumables: [], handUpgrades: {},
     pendingConsumable: null, pendingSuit: null, pendingOption: null, lastPlayedHand: null,
     calledOutId: null, cleared: false, playBuff: null,
+    pendingHandSizeBonus: 0, discardedThisLevel: false,
   })
 
   const stats = ref({})
@@ -85,6 +86,18 @@ export function useGameState() {
   onBus(EVENTS.LEVEL_WON, () => {
     showModal.value = 'levelcomplete'
     SFX.levelComplete()
+    // 成就追踪：完美一层（本层从未弃牌）
+    if (!game.discardedThisLevel) {
+      stats.value.perfectLevels = (stats.value.perfectLevels || 0) + 1
+      achievements.checkAll()
+    }
+    // Boss击杀追踪
+    if (game.mode === 'hard' && level.isBossLevelNow()) {
+      stats.value.bossDefeats = (stats.value.bossDefeats || 0) + 1
+      achievements.checkAll()
+    }
+    // 小丑上限追踪
+    achievements.recordMax('maxJokers', game.jokers.length)
     saveSys.saveGameNow()
   })
 
@@ -98,6 +111,11 @@ export function useGameState() {
     if (game.mode === 'hard') {
       const s = stats.value
       s.hardClears = (s.hardClears || 0) + 1
+      // 无丑通关追踪
+      if (game.jokers.length === 0) {
+        s.noJokerClear = true
+        achievements.checkAll()
+      }
       if (!s.unlockedChars?.includes('straight')) {
         s.unlockedChars = [...(s.unlockedChars || []), 'straight']
         showToast('解锁角色: 顺子牌手!', true)
@@ -155,6 +173,8 @@ export function useGameState() {
     game.pendingSuit = null
     game.pendingOption = null
     game.playBuff = null
+    game.pendingHandSizeBonus = 0
+    game.discardedThisLevel = false
     if (scoreTimer) { clearTimeout(scoreTimer); scoreTimer = null }
     pendingScoreResult = null
     lastScoreResult.value = null
@@ -189,7 +209,7 @@ export function useGameState() {
       if (!ok && game.selected.length >= maxSel) {
         showToast(`最多选择 ${maxSel} 张`)
       }
-      if (def && def.id === 'the_world' && game.selected.length >= def.selectCount) {
+      if (def && (def.id === 'the_world' || def.id === 'recolor') && game.selected.length >= def.selectCount) {
         game.pendingSuit = null
       }
       return
@@ -219,6 +239,9 @@ export function useGameState() {
     if (result.type === '皇家同花顺' && !stats.value.royalFlush) { stats.value.royalFlush = true; achievements.checkAll() }
     if (result.type === '五条' && !stats.value.fiveKind) { stats.value.fiveKind = true; achievements.checkAll() }
     achievements.recordMax('maxSingleScore', result.total)
+    // 牌型图鉴追踪
+    if (!stats.value.handTypesPlayed) stats.value.handTypesPlayed = {}
+    if (!stats.value.handTypesPlayed[result.type]) { stats.value.handTypesPlayed[result.type] = true; achievements.checkAll() }
 
     game.animating = true
     lastScoreResult.value = result
@@ -295,6 +318,10 @@ export function useGameState() {
     game.discardsLeft--
     cards.draw(discarded.length)
     SFX.discard()
+    game.discardedThisLevel = true
+    // 弃牌统计追踪
+    stats.value.totalDiscards = (stats.value.totalDiscards || 0) + 1
+    achievements.checkAll()
 
     if (game.bossDebuff?.id === 'called_out') boss.rollCalledOut()
 
@@ -318,6 +345,7 @@ export function useGameState() {
     if (!continued) return // 已经通关了
 
     boss.resetForNewLevel()
+    game.discardedThisLevel = false
     cards.initDeck()
     boss.pickBoss()
     cards.draw(game.handSize)
@@ -373,7 +401,11 @@ export function useGameState() {
     if (price) saveSys.saveGame()
   }
   function deleteJoker(idx) { sellJoker(idx) }
-  function rerollShop() { shop.reroll() }
+  function rerollShop() {
+    shop.reroll()
+    stats.value.totalRerolls = (stats.value.totalRerolls || 0) + 1
+    achievements.checkAll()
+  }
   function buyConsumable(idx) { shop.buyConsumable(idx) }
 
   // ========== 消耗品 API（兼容旧调用） ==========
@@ -385,7 +417,19 @@ export function useGameState() {
   function confirmConsumable() {
     const result = consumables.confirmUse()
     if (result?.error) showToast(result.error)
-    else if (result?.success) { showToast(`使用了 ${result.name}`); saveSys.saveGame() }
+    else if (result?.success) {
+      showToast(`使用了 ${result.name}`)
+      // 消耗品使用追踪
+      if (!stats.value.firstConsumable) { stats.value.firstConsumable = true; achievements.checkAll() }
+      if (result.type === 'voucher' && !stats.value.firstVoucher) { stats.value.firstVoucher = true; achievements.checkAll() }
+      // 牌型图鉴追踪
+      if (result.handType) {
+        if (!stats.value.handTypesPlayed) stats.value.handTypesPlayed = {}
+        stats.value.handTypesPlayed[result.handType] = true
+        achievements.checkAll()
+      }
+      saveSys.saveGame()
+    }
   }
   function cancelConsumable() { consumables.cancelUse() }
 

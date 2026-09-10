@@ -130,7 +130,7 @@ export function createConsumableSystem(game, bus, cardSystem) {
     cardSystem.clearSelection()
     SFX.useConsumable()
     bus.emit(EVENTS.CONSUMABLE_USED, { type: cons.type, id: cons.id })
-    return { success: true, name: def.name }
+    return { success: true, name: def.name, type: cons.type, handType: def.handType || null }
   }
 
   function getPendingDef() {

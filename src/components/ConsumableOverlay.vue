@@ -45,7 +45,7 @@ const def = computed(() => {
 })
 
 const showSuitPicker = computed(() => {
-  return def.value?.id === 'the_world' && game.selected.length >= def.value.selectCount
+  return (def.value?.id === 'the_world' || def.value?.id === 'recolor') && game.selected.length >= (def.value?.selectCount || 1)
 })
 
 const showOptionPicker = computed(() => {

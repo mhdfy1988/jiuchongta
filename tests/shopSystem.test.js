@@ -40,7 +40,7 @@ describe('ShopSystem', () => {
     expect(shop.consumables.value.length).toBeGreaterThanOrEqual(1)
     expect(shop.consumables.value.length).toBeLessThanOrEqual(2)
     shop.consumables.value.forEach(c => {
-      expect(['tarot', 'planet']).toContain(c.type)
+      expect(['tarot', 'planet', 'voucher']).toContain(c.type)
       expect(c.def.id).toBeTruthy()
     })
   })

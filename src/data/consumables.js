@@ -57,6 +57,17 @@ export const VOUCHERS = [
     options: RANKS.map(r => ({ label: r, value: r })),
     use: () => 'choose_option',
     applyOption: (card, v) => { card.rank = v } },
+  // --- 新增礼券 (5) ---
+  { id:'recolor', name:'换色券', icon:'🌈', cost:3, desc:'选1张手牌 变自选花色', selectCount:1,
+    use: () => 'choose_suit' },
+  { id:'copycat', name:'复制券', icon:'📋', cost:5, desc:'选1张手牌 复制到手牌末尾', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; const c = selected[0]; game.hand.push({ id: Date.now() + Math.random(), rank: c.rank, suit: c.suit }); return true; } },
+  { id:'sacrifice', name:'祭品', icon:'🩸', cost:3, desc:'选1张手牌销毁 获得$3', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; game.money += 3; return 'destroy'; } },
+  { id:'frenzy', name:'狂热', icon:'🤯', cost:4, desc:'下层开局手牌上限+2', instant:true,
+    apply: (game) => { game.pendingHandSizeBonus = (game.pendingHandSizeBonus || 0) + 2 } },
+  { id:'reshuffle', name:'洗牌', icon:'🔀', cost:3, desc:'重新洗混整个牌堆', instant:true,
+    apply: (game) => { const d = game.deck; for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } } },
 ]
 
 export function getConsumableDef(consumable) {

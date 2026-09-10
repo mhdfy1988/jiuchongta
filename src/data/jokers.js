@@ -29,6 +29,20 @@ export const JOKERS = [
     desc:'每张计分牌永久+8牌面分',
     effect: (ctx) => { ctx.scoringCards.forEach(c => { const key = c.id; ctx.game.cardEnhancements[key] = (ctx.game.cardEnhancements[key]||0) + 8; }); } },
 
+  // --- 新增底分小丑 (4) ---
+  { id:'loyal', name:'忠诚小丑', icon:'🐕', rarity:'common', cost:3, type:'chips', temp:false,
+    desc:'打出的牌全同花色 +60底分',
+    effect: (ctx) => { const suits = new Set(ctx.scoringCards.map(c => c.suit)); if (suits.size === 1) ctx.chips += 60; } },
+  { id:'odd_ball', name:'古怪小丑', icon:'🤪', rarity:'common', cost:3, type:'chips', temp:false,
+    desc:'打出的牌点数全不同 +50底分',
+    effect: (ctx) => { const ranks = new Set(ctx.scoringCards.map(c => c.rank)); if (ranks.size === ctx.scoringCards.length) ctx.chips += 50; } },
+  { id:'bullseye', name:'靶心', icon:'🎯', rarity:'rare', cost:5, type:'chips', temp:false,
+    desc:'每张A参与计分 +80底分',
+    effect: (ctx) => { ctx.chips += ctx.scoringCards.filter(c => c.rank === 'A').length * 80; } },
+  { id:'gravity', name:'重力', icon:'🪐', rarity:'epic', cost:7, type:'chips', temp:false,
+    desc:'牌堆≤15张时 +120底分',
+    effect: (ctx) => { if (ctx.deckCount <= 15) ctx.chips += 120; } },
+
   // --- 加倍率小丑 (15) ---
   { id:'joker', name:'小丑', icon:'🃏', rarity:'common', cost:3, type:'mult', temp:false,
     desc:'倍率+5', effect: (ctx) => { ctx.mult += 5; } },
@@ -69,6 +83,21 @@ export const JOKERS = [
     effect: (ctx) => { ctx.mult += ctx.joker.data.bonusMult?.[ctx.handType] || 0; },
     onDiscard: (cards, joker, handType) => { if (!joker.data.firstDiscardUsed) { joker.data.firstDiscardUsed = true; if (handType && handType !== '高牌') { if (!joker.data.bonusMult) joker.data.bonusMult = {}; joker.data.bonusMult[handType] = (joker.data.bonusMult[handType]||0) + 3; } } } },
 
+  // --- 新增倍率小丑 (4) ---
+  { id:'wanderer', name:'流浪者', icon:'🧳', rarity:'rare', cost:5, type:'mult', temp:false,
+    desc:'打出对子 +12倍率',
+    effect: (ctx) => { if (ctx.handType === '一对') ctx.mult += 12; } },
+  { id:'rage', name:'暴怒', icon:'😤', rarity:'rare', cost:5, type:'mult', temp:false,
+    desc:'弃牌+4倍率(上限20) 出牌后清零',
+    effect: (ctx) => { ctx.mult += ctx.joker.data.stacks || 0; ctx.joker.data.stacks = 0; },
+    onDiscard: (cards, joker) => { joker.data.stacks = Math.min(20, (joker.data.stacks||0) + 4); } },
+  { id:'acrobat', name:'杂技', icon:'🤸', rarity:'epic', cost:7, type:'mult', temp:false,
+    desc:'手牌≥6张时 +25倍率',
+    effect: (ctx) => { if (ctx.game.hand.length >= 6) ctx.mult += 25; } },
+  { id:'red_ribbon', name:'红丝绒', icon:'🎗️', rarity:'common', cost:3, type:'mult', temp:false,
+    desc:'每张红色牌(♥♦)参与计分 +3倍率',
+    effect: (ctx) => { ctx.mult += ctx.scoringCards.filter(c => c.suit === '♥' || c.suit === '♦').length * 3; } },
+
   // --- 乘倍率小丑 (9) ---
   { id:'photo', name:'照片', icon:'📸', rarity:'rare', cost:5, type:'xmult', temp:false,
     desc:'有头牌时 第一张头牌+面值底分',
@@ -98,6 +127,17 @@ export const JOKERS = [
   { id:'quintet', name:'五重奏', icon:'🎵', rarity:'legend', cost:10, type:'xmult', temp:false,
     desc:'五条倍率×5', effect: (ctx) => { if (ctx.handType === '五条') ctx.mult *= 5; } },
 
+  // --- 新增乘倍率小丑 (3) ---
+  { id:'ancient_one', name:'远古人', icon:'🗿', rarity:'epic', cost:7, type:'xmult', temp:false,
+    desc:'手牌剩余每比出牌多1张 ×1.2',
+    effect: (ctx) => { const diff = ctx.game.hand.length - ctx.playedCards.length; if (diff > 0) ctx.mult *= Math.pow(1.2, diff); } },
+  { id:'constellation', name:'星座', icon:'🌟', rarity:'epic', cost:7, type:'xmult', temp:false,
+    desc:'打出同花或同花顺时 ×2.5',
+    effect: (ctx) => { if (['同花','同花顺','皇家同花顺'].includes(ctx.handType)) ctx.mult *= 2.5; } },
+  { id:'emperor', name:'帝皇', icon:'👑', rarity:'legend', cost:10, type:'xmult', temp:false,
+    desc:'每张K参与计分×1.5 但底分-50',
+    effect: (ctx) => { const kings = ctx.scoringCards.filter(c => c.rank === 'K').length; if (kings > 0) { ctx.chips -= 50; ctx.mult *= Math.pow(1.5, kings); } } },
+
   // --- 功能小丑 (11) ---
   { id:'splash', name:'飞溅', icon:'💦', rarity:'common', cost:3, type:'utility', temp:false,
     desc:'所有打出的牌都计分', effect: (ctx) => {}, modifyScoring: (played, scoring) => [...played] },
@@ -123,6 +163,10 @@ export const JOKERS = [
     desc:'四条+第5张差1 变五条', effect: (ctx) => {}, autoFive: true },
   { id:'re_ticket', name:'补票', icon:'🎫', rarity:'rare', cost:5, type:'utility', temp:false,
     desc:'每层出牌/换牌各+1', effect: (ctx) => {}, handsBonus: 1, discardsBonus: 1 },
+
+  // --- 新增功能小丑 (1) ---
+  { id:'mudhold', name:'手相', icon:'🖐️', rarity:'rare', cost:5, type:'utility', temp:false,
+    desc:'手牌上限+1 出牌-1', effect: (ctx) => {}, handSizeBonus: 1, handsBonus: -1 },
 ]
 
 // 内部 O(1) 查找表，避免 Blueprint/Brainstorm 用 JOKERS.find O(n) 查找

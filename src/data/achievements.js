@@ -9,4 +9,15 @@ export const ACHIEVEMENTS = [
   { id: 'first_buy', name: '第一次购买', icon: '🛒', desc: '首次购买小丑', cond: (s) => s.firstBuy },
   { id: 'legend_buy', name: '传说登场', icon: '🔮', desc: '首次购买传说小丑', cond: (s) => s.legendBuy },
   { id: 'endless_10', name: '十层无尽', icon: '♾️', desc: '无尽达到第10层', cond: (s) => s.maxEndless >= 10 },
+  // --- 新增成就 (10) ---
+  { id: 'first_consumable', name: '首次消费', icon: '🔮', desc: '首次使用消耗品', cond: (s) => s.firstConsumable },
+  { id: 'first_voucher', name: '礼券初体验', icon: '🎟️', desc: '首次使用礼券牌', cond: (s) => s.firstVoucher },
+  { id: 'full_house', name: '满载而归', icon: '🏠', desc: '小丑槽放满6张', cond: (s) => s.maxJokers >= 6 },
+  { id: 'all_hands', name: '全牌型图鉴', icon: '📋', desc: '打出过所有9种牌型', cond: (s) => s.handTypesPlayed && ['高牌','一对','两对','三条','顺子','同花','葫芦','四条','同花顺'].every(t => s.handTypesPlayed[t]) },
+  { id: 'perfect_level', name: '完美一层', icon: '✨', desc: '某层0弃牌通关', cond: (s) => s.perfectLevels >= 1 },
+  { id: 'millionaire', name: '百万富翁', icon: '💎', desc: '单局总分100000', cond: (s) => s.maxScore >= 100000 },
+  { id: 'no_joker_clear', name: '无丑通关', icon: '🚫', desc: '不带小丑通关困难', cond: (s) => s.noJokerClear },
+  { id: 'boss_slayer', name: 'Boss杀手', icon: '⚔️', desc: '困难模式击败5个Boss关', cond: (s) => s.bossDefeats >= 5 },
+  { id: 'discard_master', name: '弃牌大师', icon: '🗑️', desc: '累计弃牌100次', cond: (s) => s.totalDiscards >= 100 },
+  { id: 'reroll_king', name: '刷新达人', icon: '🔄', desc: '累计刷新商店50次', cond: (s) => s.totalRerolls >= 50 },
 ]

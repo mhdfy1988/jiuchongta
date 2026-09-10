@@ -81,14 +81,18 @@ export function createLevelSystem(game, bus) {
   // 层开始时的出牌/弃牌次数：基础 4 次，持有加成小丑（如补票）时叠加
   // 注意：startRun 不用此函数——新局开始时 jokers 尚未重置，固定 4/4
   function resetPlays() {
-    let hands = 4, discards = 4
+    let hands = 4, discards = 4, handSize = 8
     for (const joker of game.jokers || []) {
       const def = getJoker(joker.id)
       hands += def?.handsBonus || 0
       discards += def?.discardsBonus || 0
+      handSize += def?.handSizeBonus || 0
     }
+    handSize += game.pendingHandSizeBonus || 0
+    game.pendingHandSizeBonus = 0
     game.handsLeft = hands
     game.discardsLeft = discards
+    game.handSize = handSize
   }
 
   // ---------- 下一层 ----------
@@ -102,7 +106,6 @@ export function createLevelSystem(game, bus) {
     game.level++
     game.levelScore = 0
     resetPlays()
-    game.handSize = 8
     game.levelStartMoney = game.money
     game.targetScore = getTargetScore(game.level, game.mode)
     SFX.levelUp()
@@ -123,7 +126,6 @@ export function createLevelSystem(game, bus) {
     if (game.lives > 0) {
       game.lives--
       game.levelScore = 0
-      game.handSize = 8
       resetPlays()
       bus.emit(EVENTS.REVIVED, { lives: game.lives })
       return true // 复活了

@@ -21,7 +21,7 @@ export const SAVE_KEY = 'pokerRoguelikeSave'
 export const SAVE_VERSION = 2
 
 export const RARITY_NAMES = { common:'普通', rare:'稀有', epic:'史诗', legend:'传说' }
-export const TYPE_NAMES = { chips:'底分', mult:'倍率', xmult:'乘倍率', utility:'功能', temp:'临时' }
+export const TYPE_NAMES = { chips:'底分', mult:'倍率', xmult:'乘倍率', utility:'功能' }
 
 export function getEndlessTarget(level) {
   const primeIdx = level - 1
