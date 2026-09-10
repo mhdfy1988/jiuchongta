@@ -6,6 +6,7 @@
 |------|------|------|
 | 构建工具 | Vite 5 | 极速开发体验，原生 ESM |
 | 框架 | Vue 3.5 | Composition API，响应式系统 |
+| 测试 | Vitest 2 | 单元测试，227 个用例 |
 | 样式 | 原生 CSS | CSS 变量主题系统，零依赖 |
 | 状态管理 | Vue reactive/ref | 轻量级，无需额外状态库 |
 | 音效 | Web Audio API | 纯前端合成，无需音频文件 |
@@ -46,14 +47,16 @@
 - `GameScreen.vue` — 游戏主界面，三栏布局
 - `ScoreAnimation.vue` — 出牌计分动画（牌型亮相 → 逐条叠加 → 爆燃结算）
 - `ShopModal.vue` — 商店弹窗
-- `CardCollectionModal.vue` — 卡牌图鉴（小丑/塔罗/星球/Boss 分页）
+- `CardCollectionModal.vue` — 卡牌图鉴（小丑/塔罗/星球/礼券/Boss 分页）
 - `HandChartModal.vue` — 牌型速查表
 - `DeckViewModal.vue` — 牌堆查看
 - `ConsumableOverlay.vue` — 消耗品使用覆盖层
 - `LevelCompleteModal.vue` — 过关弹窗
-- `GameOverModal.vue` — 游戏结束弹窗
+- `GameOverModal.vue` — 游戏结束弹窗（宽体双列）
 - `RunStatsModal.vue` — 本局统计
-- `AchievementsModal.vue` — 成就系统
+- `GlobalStatsModal.vue` — 全局统计面板（宽体双列）
+- `AchievementsModal.vue` — 成就系统（分页展示）
+- `DebugConsole.vue` — 调试控制台
 - `BaseModal.vue` — 模态框基类组件
 - 游戏卡牌组件：`JokerCard.vue` / `ConsumableCard.vue` / `PlayingCard.vue`
 
@@ -87,9 +90,9 @@
   level: 1,               // 当前层数
   deck: [],               // 牌堆（剩余的牌）
   hand: [],               // 手牌
-  selected: [],           // 选中的牌索引
+  selected: [],            // 选中的牌（存 cardId）
   jokers: [],             // 小丑牌 [{ id, data }]
-  consumables: [],        // 消耗品 [{ id, data }]
+  consumables: [],        // 消耗品 [{ id, data, type }]
   money: 5,               // 金币
   handsLeft: 4,           // 剩余出牌次数
   discardsLeft: 4,        // 剩余换牌次数
@@ -99,7 +102,11 @@
   handUpgrades: {},       // 牌型升级记录
   bossDebuff: null,       // 当前 Boss 减益
   shopItems: [],          // 商店商品
-  lastPlayed: null,       // 上一手记录
+  lastPlayedHand: null,   // 上一手记录
+  cardSeals: {},          // 卡牌印记 { cardId: 'gold'|'red' }
+  playBuff: null,         // 礼券一次性加成 { chips, mult, finalMult }
+  playedCardsThisLevel: [], // 立柱 Boss 记录的已打出牌
+  discardedThisLevel: false, // 本层是否弃过牌（完美一层判定）
 }
 ```
 
@@ -127,7 +134,7 @@
 | 关卡系统 | `levelSystem.js` | 关卡进度、目标分计算、胜负判定、利息奖励 |
 | 小丑系统 | `jokerSystem.js` | 小丑添加/移除/卖出、效果注册 |
 | 商店系统 | `shopSystem.js` | 商品生成、刷新、购买、卖出 |
-| 消耗品系统 | `consumableSystem.js` | 消耗品使用、塔罗/星球效果 |
+| 消耗品系统 | `consumableSystem.js` | 消耗品使用、塔罗/星球/礼券效果、选牌与选项流程 |
 | 存档系统 | `saveSystem.js` | 序列化/反序列化、版本检查、localStorage 读写 |
 | 成就系统 | `achievementSystem.js` | 成就检测、解锁、统计 |
 
@@ -155,11 +162,11 @@
 | 文件 | 内容 |
 |------|------|
 | `constants.js` | 花色、点数、牌型底分/倍率、目标分数、稀有度名称等 |
-| `jokers.js` | 48 张小丑牌定义（id、名称、图标、稀有度、价格、类型、效果函数） |
-| `consumables.js` | 8 张塔罗牌 + 9 张星球牌定义 |
+| `jokers.js` | 55 张小丑牌定义（id、名称、图标、稀有度、价格、类型、效果函数） |
+| `consumables.js` | 16 张塔罗牌 + 9 张星球牌 + 10 张礼券牌定义 |
 | `characters.js` | 3 个角色 + 3 种模式定义 |
-| `bosses.js` | 12 个 Boss 减益效果定义（初级/中级/高级各 4 个） |
-| `achievements.js` | 10 个成就定义及条件函数 |
+| `bosses.js` | 22 个 Boss 减益效果定义（弱 7 / 中 8 / 强 7） |
+| `achievements.js` | 20 个成就定义及条件函数 |
 
 小丑效果通过函数实现，接收上下文对象 `ctx`：
 ```js
@@ -200,15 +207,17 @@
 
 ## 存档系统
 
-存档使用 localStorage，key 为 `pokerRoguelikeSave`。
+存档使用 localStorage，包含两个键：
+- `pokerRoguelikeSave` — 当前进度（通关/失败后清除）
+- `pokerRoguelikeStats` — 统计数据和成就（永久保留）
 
 存档内容：
 - 本局游戏状态（可继续游戏）
 - 成就进度
-- 统计数据（通关次数、最高分、最高层数等）
+- 统计数据（通关次数、最高分、最高层数、总游戏次数、累计弃牌/刷新/Boss击杀等）
 - 解锁的角色和模式
 
-每次状态变更后自动保存（防抖处理），页面加载时自动读取。
+每次状态变更后自动保存（300ms 防抖），页面加载时自动读取。`saveGameNow()` 和 `clearSave()` 均会清除待执行的防抖定时器，确保存档状态即时一致。
 
 ## 部署流程
 
@@ -225,6 +234,6 @@ npx gh-pages -d dist
 
 - **组件懒更新**：使用 Vue 的响应式系统，只更新变化的部分
 - **卡牌复用**：手牌使用 key 绑定卡牌 id，减少 DOM 重建
-- **防抖存档**：状态变更后 500ms 才写入 localStorage
+- **防抖存档**：状态变更后 300ms 才写入 localStorage
 - **CSS 变量**：主题色统一管理，避免重复计算
 - **纯函数计分**：计分逻辑无副作用，可缓存
