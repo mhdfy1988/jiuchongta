@@ -193,14 +193,14 @@ function deleteSave() {
 .char-card.selected, .mode-card.selected {
   border-color: var(--accent); box-shadow: 0 0 20px rgba(255,51,102,0.3);
 }
-.char-card.locked, .mode-card.locked { opacity: 0.4; cursor: not-allowed; }
-.char-card.locked:hover, .mode-card.locked:hover { border-color: rgba(255,255,255,0.1); transform: none; }
+.char-card.locked, .mode-card.locked { opacity: 0.65; cursor: not-allowed; }
+.char-card.locked:hover, .mode-card.locked:hover { border-color: rgba(255,255,255,0.12); transform: none; }
 .char-icon { font-size: 48px; margin-bottom: 8px; line-height: 1; }
 .char-name { font-size: 18px; font-weight: 800; color: var(--gold); margin-bottom: 4px; }
-.char-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.char-desc { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.4; }
 .mode-icon { font-size: 36px; margin-bottom: 8px; line-height: 1; }
 .mode-name { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
-.mode-desc { font-size: 11px; color: var(--muted); }
+.mode-desc { font-size: 11px; color: rgba(255,255,255,0.6); }
 .lock-text { font-size: 11px; color: var(--red); margin-top: 6px; }
 
 .confirm-btn {
