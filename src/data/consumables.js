@@ -1,4 +1,4 @@
-import { SUITS, RANKS } from './constants.js'
+import { SUITS, RANKS, HAND_TYPES } from './constants.js'
 
 export const TAROTS = [
   { id:'the_fool', name:'愚者', icon:'🃏', cost:3, desc:'选1张手牌变成随机牌', selectCount:1,
@@ -17,6 +17,25 @@ export const TAROTS = [
     use: (game, selected) => { if (selected.length < 1) return false; selected[0].suit = SUITS[Math.floor(Math.random()*4)]; return true; } },
   { id:'the_world', name:'世界', icon:'🌍', cost:4, desc:'选1张手牌,自选花色', selectCount:1,
     use: (game, selected) => { if (selected.length < 1) return false; return 'choose_suit'; } },
+  // --- 新增塔罗牌 (8) ---
+  { id:'the_hermit', name:'隐者', icon:'🧙', cost:3, desc:'选1张手牌 变成自选点数(花色不变)', selectCount:1,
+    options: RANKS.map(r => ({ label: r, value: r })),
+    use: () => 'choose_option',
+    applyOption: (card, v) => { card.rank = v } },
+  { id:'wheel_of_fortune', name:'命运之轮', icon:'🎡', cost:4, desc:'随机升级1种牌型', selectCount:0,
+    use: (game) => { const types = Object.keys(HAND_TYPES); const t = types[Math.floor(Math.random()*types.length)]; if (!game.handUpgrades[t]) game.handUpgrades[t] = { chips:0, mult:0 }; game.handUpgrades[t].mult += 2; return true; } },
+  { id:'the_star', name:'星星', icon:'⭐', cost:3, desc:'选1张手牌 变成A(保留花色)', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; selected[0].rank = 'A'; return true; } },
+  { id:'the_moon', name:'月亮', icon:'🌙', cost:3, desc:'选1张手牌 变成随机人头牌(J/Q/K)', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; selected[0].rank = ['J','Q','K'][Math.floor(Math.random()*3)]; return true; } },
+  { id:'the_sun', name:'太阳', icon:'☀️', cost:4, desc:'选1张手牌 变成10', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; selected[0].rank = '10'; return true; } },
+  { id:'strength', name:'力量', icon:'💪', cost:3, desc:'选1张手牌 点数+1(顺延)', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; const i = RANKS.indexOf(selected[0].rank); if (i >= 0) selected[0].rank = RANKS[(i+1)%RANKS.length]; return true; } },
+  { id:'the_devil', name:'恶魔', icon:'😈', cost:4, desc:'选1张手牌 加金色印记(+3倍率)', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; if (!game.cardSeals) game.cardSeals = {}; game.cardSeals[selected[0].id] = 'gold'; return true; } },
+  { id:'the_hanged_man', name:'倒吊人', icon:'🤸', cost:4, desc:'选1张手牌 加红色印记(出牌后重抽1张)', selectCount:1,
+    use: (game, selected) => { if (selected.length < 1) return false; if (!game.cardSeals) game.cardSeals = {}; game.cardSeals[selected[0].id] = 'red'; return true; } },
 ]
 
 export const PLANETS = [

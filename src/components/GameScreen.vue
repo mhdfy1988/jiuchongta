@@ -6,7 +6,10 @@
         <span :class="isBoss ? 'boss-tag' : 'normal-tag'">第 {{ game.level }} 层</span>
       </div>
       <div v-if="game.bossDebuff" class="boss-debuff">
-        <div class="boss-name">{{ game.bossDebuff.name }}</div>
+        <div class="boss-header">
+          <span class="boss-icon">{{ game.bossDebuff.icon }}</span>
+          <span class="boss-name">{{ game.bossDebuff.name }}</span>
+        </div>
         <div class="boss-desc">{{ game.bossDebuff.desc }}</div>
 
         <!-- 封锁: 禁用牌型 -->
@@ -384,9 +387,16 @@ function showConsTip(e, def, type) {
   text-align: center; font-size: 12px; color: var(--accent);
   background: rgba(255,51,102,0.1); padding: 6px 10px; border-radius: 8px;
   border: 1px solid rgba(255,51,102,0.2);
+  animation: bossAppear 0.5s ease-out;
 }
+.boss-header { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 4px; }
+.boss-icon { font-size: 20px; filter: drop-shadow(0 0 6px rgba(255,51,102,0.4)); }
 .boss-debuff .boss-name { font-weight: 800; margin-bottom: 2px; }
 .boss-debuff .boss-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+@keyframes bossAppear {
+  from { opacity: 0; transform: scale(0.8) translateY(-10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
 .boss-detail {
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 4px; padding: 2px 6px; background: rgba(0,0,0,0.25); border-radius: 4px;

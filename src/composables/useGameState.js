@@ -38,7 +38,7 @@ export function useGameState() {
     animating: false, consumables: [], handUpgrades: {},
     pendingConsumable: null, pendingSuit: null, pendingOption: null, lastPlayedHand: null,
     calledOutId: null, cleared: false, playBuff: null,
-    pendingHandSizeBonus: 0, discardedThisLevel: false,
+    pendingHandSizeBonus: 0, discardedThisLevel: false, cardSeals: {},
   })
 
   const stats = ref({})
@@ -102,24 +102,29 @@ export function useGameState() {
   })
 
   onBus(EVENTS.GAME_OVER, () => {
+    const s = stats.value
+    s.totalGames = (s.totalGames || 0) + 1
+    saveSys.saveStats(s)
     achievements.recordMax('maxScore', game.totalScore)
     showModal.value = 'gameover'
     saveSys.clearSave()
   })
 
   onBus(EVENTS.GAME_CLEAR, () => {
+    const s = stats.value
+    s.totalGames = (s.totalGames || 0) + 1
     if (game.mode === 'hard') {
-      const s = stats.value
       s.hardClears = (s.hardClears || 0) + 1
       // 无丑通关追踪
       if (game.jokers.length === 0) {
         s.noJokerClear = true
         achievements.checkAll()
       }
-      if (!s.unlockedChars?.includes('straight')) {
-        s.unlockedChars = [...(s.unlockedChars || []), 'straight']
-        showToast('解锁角色: 顺子牌手!', true)
-      }
+    }
+    saveSys.saveStats(s)
+    if (!s.unlockedChars?.includes('straight')) {
+      s.unlockedChars = [...(s.unlockedChars || []), 'straight']
+      showToast('解锁角色: 顺子牌手!', true)
     }
     achievements.recordMax('maxScore', game.totalScore)
     if (!stats.value.unlockedEndless) {
@@ -167,6 +172,7 @@ export function useGameState() {
     game.handTypeCounts = {}
     game.cardEnhancements = {}
     game.handUpgrades = {}
+    game.cardSeals = {}
     game.rerollCount = 0
     game.consumables = []
     game.pendingConsumable = null
@@ -275,6 +281,14 @@ export function useGameState() {
     // 移除已出牌，补牌
     cards.removeSelected()
     cards.draw(selectedCards.length)
+
+    // 红色印记：出牌后重抽1张
+    const seals = game.cardSeals || {}
+    let redrawCount = 0
+    for (const c of selectedCards) {
+      if (seals[c.id] === 'red') redrawCount++
+    }
+    if (redrawCount > 0) cards.draw(redrawCount)
 
     // 点名 Boss：下一张
     if (game.bossDebuff?.id === 'called_out') boss.rollCalledOut()

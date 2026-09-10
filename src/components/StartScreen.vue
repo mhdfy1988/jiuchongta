@@ -9,6 +9,7 @@
         <button v-if="state.hasSave()" class="menu-btn btn-continue" @click="continueGame">📂 继续游戏</button>
         <button class="menu-btn btn-collection" @click="state.showModal.value = 'collection'">📖 卡牌图鉴</button>
         <button class="menu-btn btn-ach" @click="state.showModal.value = 'achievements'">🏆 成就</button>
+        <button class="menu-btn btn-stats" @click="state.showModal.value = 'stats'">📊 全局统计</button>
         <button v-if="state.hasSave()" class="menu-btn btn-delete" @click="deleteSave">🗑️ 删除存档</button>
       </div>
     </template>
@@ -52,6 +53,7 @@
     <!-- 卡牌图鉴弹窗 -->
     <CardCollectionModal v-if="state.showModal.value === 'collection'" :state="state" @close="state.showModal.value = null" />
     <AchievementsModal v-if="state.showModal.value === 'achievements'" :stats="state.stats.value" @close="state.showModal.value = null" />
+    <GlobalStatsModal v-if="state.showModal.value === 'stats'" :stats="state.stats.value" @close="state.showModal.value = null" />
   </div>
 </template>
 
@@ -60,6 +62,7 @@ import { ref, computed } from 'vue'
 import { CHARACTERS, MODES } from '../data/characters.js'
 import CardCollectionModal from './CardCollectionModal.vue'
 import AchievementsModal from './AchievementsModal.vue'
+import GlobalStatsModal from './GlobalStatsModal.vue'
 
 const props = defineProps({ state: Object })
 const view = ref('menu')
@@ -154,6 +157,10 @@ function deleteSave() {
   background: rgba(255,204,34,0.1); border-color: rgba(255,204,34,0.4); color: var(--gold);
 }
 .btn-ach:hover { background: rgba(255,204,34,0.15); box-shadow: 0 4px 20px rgba(255,204,34,0.2); }
+.btn-stats {
+  background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.4); color: #00d4ff;
+}
+.btn-stats:hover { background: rgba(0,212,255,0.15); box-shadow: 0 4px 20px rgba(0,212,255,0.2); }
 .btn-delete {
   background: rgba(255,51,102,0.1); border-color: rgba(255,51,102,0.3); color: var(--red); font-size: 13px; min-width: 160px; padding: 8px 24px;
 }

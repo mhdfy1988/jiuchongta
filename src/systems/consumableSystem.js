@@ -51,6 +51,18 @@ export function createConsumableSystem(game, bus, cardSystem) {
       return 'applied'
     }
 
+    // 无需选牌的消耗品（如命运之轮）：直接执行
+    if (def.selectCount === 0) {
+      const result = def.use(game, [])
+      if (result !== false) {
+        game.consumables.splice(idx, 1)
+        SFX.useConsumable()
+        bus.emit(EVENTS.CONSUMABLE_USED, { type: cons.type, id: cons.id })
+        return 'applied'
+      }
+      return false
+    }
+
     // 其余进入待选牌状态（存对象引用，避免下标因卖出错位）
     game.pendingConsumable = cons
     game.pendingSuit = null

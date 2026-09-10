@@ -157,8 +157,14 @@ export function createScoringSystem() {
     }
 
     // 基础：每张计分牌的点数
+    const cardSeals = game.cardSeals || {}
     scoringCards.forEach(card => {
       chips += RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0)
+    })
+
+    // 卡牌印记：金色印记 +3倍率
+    scoringCards.forEach(card => {
+      if (cardSeals[card.id] === 'gold') mult += 3
     })
 
     // 额外触发（吊牌、喜与悲）
