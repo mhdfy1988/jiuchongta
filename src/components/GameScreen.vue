@@ -42,6 +42,12 @@
           <span class="bd-val small">{{ game.playedHandTypes.join('、') }}</span>
         </div>
 
+        <!-- 立柱: 已打出的牌(不再计分) -->
+        <div v-if="game.bossDebuff.id === 'pillar' && game.playedCardsThisLevel?.length > 0" class="boss-detail">
+          <span class="bd-label">失效</span>
+          <span class="bd-val small">{{ game.playedCardsThisLevel.join(' ') }}</span>
+        </div>
+
         <!-- 点名: 当前点名牌 -->
         <div v-if="game.bossDebuff.id === 'called_out' && calledOutCard" class="boss-detail">
           <span class="bd-label">点名牌</span>
@@ -311,7 +317,13 @@ const previewHand = computed(() => {
   if (game.selected.length === 0) return null
   const cards = game.selected.map(id => game.hand.find(c => c.id === id)).filter(Boolean)
   const result = props.state.evaluateHand(cards, game)
-  return { type: result.type, chips: result.chips, mult: result.mult }
+  let { chips, mult } = result
+  // 燧石：预览也要反映基础分减半
+  if (game.bossDebuff?.id === 'flint') {
+    chips = Math.ceil(chips / 2)
+    mult = Math.max(1, Math.ceil(mult / 2))
+  }
+  return { type: result.type, chips, mult }
 })
 
 function getJokerDef(joker) {

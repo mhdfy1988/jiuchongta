@@ -237,3 +237,51 @@ describe('幻视联动', () => {
     expect(r.chips).toBe(10) // 只剩牌型基础分
   })
 })
+
+describe('新 Boss 计分效果', () => {
+  // 一对(2,2)：基础(10,2) + 牌面 2+2 = 14底分
+  const pairCards = () => makeCards([['2','♠'],['2','♥'],['9','♣'],['5','♦'],['7','♠']])
+
+  it('贬值：牌面值减半（向上取整）', () => {
+    // A高牌：基础5 + A(11→6) = 11
+    const cards = makeCards([['A','♠'],['2','♥'],['9','♣'],['5','♦'],['7','♠']])
+    const r = calculateScore(cards, fakeGame({ bossDebuff: { id: 'devalue' } }))
+    expect(r.type).toBe('高牌')
+    expect(r.chips).toBe(5 + 6) // ceil(11/2)=6
+  })
+
+  it('贬值不影响牌型基础分，只影响牌面值', () => {
+    const r = calculateScore(pairCards(), fakeGame({ bossDebuff: { id: 'devalue' } }))
+    // 一对基础10 + 两张2各 ceil(2/2)=1
+    expect(r.chips).toBe(10 + 1 + 1)
+  })
+
+  it('燧石：牌型基础底分和倍率减半', () => {
+    const r = calculateScore(pairCards(), fakeGame({ bossDebuff: { id: 'flint' } }))
+    // 一对基础 (10,2) → (5,1)，牌面值 2+2 正常
+    expect(r.chips).toBe(5 + 2 + 2)
+    expect(r.mult).toBe(1)
+  })
+
+  it('立柱：本层打出过的牌不再计分，但牌型判定不受影响', () => {
+    const game = fakeGame({
+      bossDebuff: { id: 'pillar' },
+      playedCardsThisLevel: ['2♠', '2♥'],
+    })
+    const r = calculateScore(pairCards(), game)
+    expect(r.type).toBe('一对') // 牌型照常判定
+    expect(r.scoringCards.length).toBe(0) // 两张2都被过滤
+    expect(r.chips).toBe(10) // 只剩基础底分
+  })
+
+  it('赌徒：总分在 ±30% 内波动，且有波动明细', () => {
+    const game = fakeGame({ bossDebuff: { id: 'gambler' } })
+    const base = calculateScore(pairCards(), fakeGame())
+    for (let i = 0; i < 20; i++) {
+      const r = calculateScore(pairCards(), game)
+      expect(r.total).toBeGreaterThanOrEqual(Math.floor(base.total * 0.7))
+      expect(r.total).toBeLessThanOrEqual(Math.floor(base.total * 1.3))
+      expect(r.breakdown.some(b => b.label.startsWith('赌徒波动'))).toBe(true)
+    }
+  })
+})

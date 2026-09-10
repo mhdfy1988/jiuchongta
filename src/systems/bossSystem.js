@@ -42,6 +42,7 @@ export function createBossSystem(game, bus) {
     no_discard: () => { game.discardsLeft = 0 },
     pinhole: () => { game.handsLeft = 1 },
     high_wall: (opts) => { if (opts.scaleTarget) game.targetScore = Math.floor(game.targetScore * 1.5) },
+    low_wall: (opts) => { if (opts.scaleTarget) game.targetScore = Math.floor(game.targetScore * 1.25) },
     color_cut: () => {
       if (!game.bossDebuff.disabledSuit) game.bossDebuff.disabledSuit = SUITS[Math.floor(Math.random() * 4)]
     },
@@ -140,6 +141,16 @@ export function createBossSystem(game, bus) {
     game.playedHandTypes = [...game.playedHandTypes, type]
   }
 
+  // 立柱：记录本层打出过的具体牌（rank+suit），之后同牌不计分
+  function recordPlayedCards(playedCards) {
+    if (game.bossDebuff?.id !== 'pillar') return
+    if (!game.playedCardsThisLevel) game.playedCardsThisLevel = []
+    for (const c of playedCards) {
+      const key = c.rank + c.suit
+      if (!game.playedCardsThisLevel.includes(key)) game.playedCardsThisLevel.push(key)
+    }
+  }
+
   // ---------- 重置（新一层） ----------
 
   function resetForNewLevel() {
@@ -147,6 +158,7 @@ export function createBossSystem(game, bus) {
     game.silencedJoker = null
     game.lockedHandType = null
     game.playedHandTypes = []
+    game.playedCardsThisLevel = []
     game.calledOutId = null
   }
 
@@ -155,6 +167,7 @@ export function createBossSystem(game, bus) {
   function reapplyForRevive() {
     game.lockedHandType = null
     game.playedHandTypes = []
+    game.playedCardsThisLevel = []
     game.calledOutId = null
     applyEffects({ scaleTarget: false })
     if (game.bossDebuff?.id === 'called_out') rollCalledOut()
@@ -169,6 +182,7 @@ export function createBossSystem(game, bus) {
     applyEffects,
     validatePlay,
     recordPlayed,
+    recordPlayedCards,
     rollCalledOut,
     checkCalledOut,
     ensureCalledOut,

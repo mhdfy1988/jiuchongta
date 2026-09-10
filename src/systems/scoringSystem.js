@@ -142,6 +142,22 @@ export function createScoringSystem() {
     let mult = evalResult.mult
     const triggerLog = []
 
+    // 燧石：牌型基础底分和倍率减半
+    if (game.bossDebuff?.id === 'flint') {
+      chips = Math.ceil(chips / 2)
+      mult = Math.max(1, Math.ceil(mult / 2))
+    }
+    // 明细里的"基础"项用这个值（燧石调整后、卡牌点数和小丑叠加前）
+    const baseChips = chips
+    const baseMult = mult
+
+    // 贬值：牌面值减半（向上取整）
+    const devalued = game.bossDebuff?.id === 'devalue'
+    const cardChips = (card) => {
+      const v = RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0)
+      return devalued ? Math.ceil(v / 2) : v
+    }
+
     // splash：所有打出的有效牌都计分
     let scoringCards = evalResult.scoringCards
     const idSet = buildJokerIdSet(game.jokers)
@@ -151,6 +167,11 @@ export function createScoringSystem() {
     const hasVision = idSet.has('vision')
     const isFace = (c) => hasVision || FACE_CARDS.includes(c.rank)
 
+    // 立柱：本层打出过的牌不再计分（仍参与牌型判定）
+    if (game.bossDebuff?.id === 'pillar' && game.playedCardsThisLevel?.length) {
+      scoringCards = scoringCards.filter(c => !game.playedCardsThisLevel.includes(c.rank + c.suit))
+    }
+
     // Boss 过滤（人头牌不计分,只影响底分不影响牌型）
     if (game.bossDebuff?.id === 'seal_king') {
       scoringCards = scoringCards.filter(c => !isFace(c))
@@ -159,7 +180,7 @@ export function createScoringSystem() {
     // 基础：每张计分牌的点数
     const cardSeals = game.cardSeals || {}
     scoringCards.forEach(card => {
-      chips += RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0)
+      chips += cardChips(card)
     })
 
     // 卡牌印记：金色印记 +3倍率
@@ -177,7 +198,7 @@ export function createScoringSystem() {
       const card = scoringCards[idx]
       if (!card) continue
       for (let t = 0; t < extraTriggers[idx]; t++) {
-        chips += RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0)
+        chips += cardChips(card)
       }
     }
 
@@ -232,15 +253,25 @@ export function createScoringSystem() {
       noRepeatZeroed = true
     }
 
+    // 赌徒：总分 ±30% 随机波动
+    let gambleFactor = null
+    if (game.bossDebuff?.id === 'gambler' && !noRepeatZeroed) {
+      gambleFactor = 0.7 + Math.random() * 0.6
+      finalTotal = Math.max(0, Math.floor(total * gambleFactor))
+    }
+
     // 明细
     const breakdown = []
-    breakdown.push({ label: evalResult.type + ' 基础', chips: evalResult.chips, mult: evalResult.mult })
+    breakdown.push({ label: evalResult.type + ' 基础', chips: baseChips, mult: baseMult })
     scoringCards.forEach(card => {
-      breakdown.push({ label: card.rank + card.suit, chips: RANK_VALUES[card.rank] + (game.cardEnhancements[card.id] || 0), mult: 0 })
+      breakdown.push({ label: card.rank + card.suit, chips: cardChips(card), mult: 0 })
     })
     triggerLog.forEach(log => {
       breakdown.push({ label: log.name, chips: log.chips || 0, mult: log.mult || 0 })
     })
+    if (gambleFactor !== null) {
+      breakdown.push({ label: `赌徒波动 ×${gambleFactor.toFixed(2)}`, chips: 0, mult: 0 })
+    }
 
     return { type: evalResult.type, chips, mult, total: finalTotal, scoringCards, triggerLog, breakdown, zeroedByNoRepeat: noRepeatZeroed }
   }

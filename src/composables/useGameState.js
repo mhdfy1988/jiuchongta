@@ -32,7 +32,7 @@ export function useGameState() {
     levelScore: 0, targetScore: 0,
     bossDebuff: null, silencedJoker: null,
     handTypeCounts: {}, cardEnhancements: {},
-    lockedHandType: null, playedHandTypes: [],
+    lockedHandType: null, playedHandTypes: [], playedCardsThisLevel: [],
     rerollCount: 0, levelStartMoney: 5, lives: 0,
     totalScore: 0, maxSingleScore: 0,
     animating: false, consumables: [], handUpgrades: {},
@@ -239,6 +239,19 @@ export function useGameState() {
     // 计分延迟到动画结束后(见 finishScoreAnim),让左侧当前分在特效播完后再上涨
     pendingScoreResult = result
     boss.recordPlayed(result.type)
+    boss.recordPlayedCards(selectedCards) // 立柱：记录本层打出的牌
+
+    // 牙缝：每打出1张牌扣$1
+    if (game.bossDebuff?.id === 'tooth' && selectedCards.length > 0) {
+      game.money = Math.max(0, game.money - selectedCards.length)
+      showToast(`牙缝: -$${selectedCards.length}`)
+    }
+
+    // 吸血鬼：每打出一次牌目标分+10%
+    if (game.bossDebuff?.id === 'vampire') {
+      game.targetScore = Math.ceil(game.targetScore * 1.1)
+      showToast(`吸血鬼: 目标分提升至 ${game.targetScore.toLocaleString()}`)
+    }
 
     // 成就检测
     if (result.type === '同花顺' && !stats.value.flushStraight) { stats.value.flushStraight = true; achievements.checkAll() }
@@ -278,9 +291,12 @@ export function useGameState() {
     // 礼券增益一次性消耗
     game.playBuff = null
 
-    // 移除已出牌，补牌
+    // 移除已出牌，补牌（沉底：补牌数-1）
     cards.removeSelected()
-    cards.draw(selectedCards.length)
+    const refillCount = game.bossDebuff?.id === 'low_refill'
+      ? Math.max(0, selectedCards.length - 1)
+      : selectedCards.length
+    cards.draw(refillCount)
 
     // 红色印记：出牌后重抽1张
     const seals = game.cardSeals || {}
@@ -289,6 +305,16 @@ export function useGameState() {
       if (seals[c.id] === 'red') redrawCount++
     }
     if (redrawCount > 0) cards.draw(redrawCount)
+
+    // 倒钩：出牌后随机弃掉2张手牌
+    if (game.bossDebuff?.id === 'hook') {
+      const hooked = []
+      for (let i = 0; i < 2 && game.hand.length > 0; i++) {
+        const [c] = game.hand.splice(Math.floor(Math.random() * game.hand.length), 1)
+        hooked.push(c.rank + c.suit)
+      }
+      if (hooked.length > 0) showToast(`倒钩: 随机弃掉了 ${hooked.join(' ')}`)
+    }
 
     // 点名 Boss：下一张
     if (game.bossDebuff?.id === 'called_out') boss.rollCalledOut()
@@ -425,6 +451,7 @@ export function useGameState() {
   // ========== 消耗品 API（兼容旧调用） ==========
 
   function useConsumable(idx) {
+    if (game.bossDebuff?.id === 'no_consumable') { showToast('禁耗: 本层禁止使用消耗品!'); return }
     const result = consumables.startUse(idx)
     if (result?.applied) {
       if (result.upgradedHandType) {

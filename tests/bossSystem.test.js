@@ -209,4 +209,47 @@ describe('BossSystem', () => {
     // 应该重 roll 到一个存在的 id
     expect(game.hand.some(c => c.id === game.calledOutId)).toBe(true)
   })
+
+  it('low_wall 目标分 x1.25', () => {
+    game.targetScore = 300
+    game.bossDebuff = { id: 'low_wall', name: '矮墙' }
+    boss.applyEffects()
+    expect(game.targetScore).toBe(375)
+  })
+
+  it('low_wall 复活时不重复乘目标分', () => {
+    game.targetScore = 300
+    game.bossDebuff = { id: 'low_wall', name: '矮墙' }
+    boss.applyEffects({ scaleTarget: false })
+    expect(game.targetScore).toBe(300)
+  })
+
+  it('pillar recordPlayedCards 记录本层打出的牌（去重）', () => {
+    game.bossDebuff = { id: 'pillar', name: '立柱' }
+    game.playedCardsThisLevel = []
+    boss.recordPlayedCards([{ rank: 'A', suit: '♠' }, { rank: 'K', suit: '♥' }])
+    boss.recordPlayedCards([{ rank: 'A', suit: '♠' }, { rank: '5', suit: '♣' }])
+    expect(game.playedCardsThisLevel).toEqual(['A♠', 'K♥', '5♣'])
+  })
+
+  it('pillar 非立柱 boss 不记录', () => {
+    game.bossDebuff = { id: 'shackles' }
+    game.playedCardsThisLevel = []
+    boss.recordPlayedCards([{ rank: 'A', suit: '♠' }])
+    expect(game.playedCardsThisLevel).toEqual([])
+  })
+
+  it('resetForNewLevel 清空立柱记录', () => {
+    game.bossDebuff = { id: 'pillar' }
+    game.playedCardsThisLevel = ['A♠']
+    boss.resetForNewLevel()
+    expect(game.playedCardsThisLevel).toEqual([])
+  })
+
+  it('reapplyForRevive 清空立柱记录', () => {
+    game.bossDebuff = { id: 'pillar' }
+    game.playedCardsThisLevel = ['A♠']
+    boss.reapplyForRevive()
+    expect(game.playedCardsThisLevel).toEqual([])
+  })
 })
