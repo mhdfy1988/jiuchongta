@@ -44,7 +44,7 @@ const props = defineProps({
 defineEmits(['close'])
 
 const achievements = ACHIEVEMENTS
-const PER_PAGE = 10
+const PER_PAGE = 9
 const currentPage = ref(1)
 
 const totalPages = computed(() => Math.ceil(achievements.length / PER_PAGE))
