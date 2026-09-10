@@ -99,4 +99,39 @@ describe('SaveSystem', () => {
     const loaded = save.loadStats()
     expect(loaded).toEqual({})
   })
+
+  it('saveGameNow 清除 pending 防抖定时器', () => {
+    save.saveGame()      // 设置 300ms 防抖定时器
+    save.saveGameNow()   // 立即保存，应清除定时器
+    expect(save.hasSave()).toBe(true)
+    // 等 350ms 确认定时器没再触发（不会额外写入）
+    return new Promise(resolve => setTimeout(() => {
+      // 仍然只有一次保存，hasSave 不变
+      expect(save.hasSave()).toBe(true)
+      resolve()
+    }, 350))
+  })
+
+  it('clearSave 清除 pending 防抖定时器，防止延迟写入', () => {
+    save.saveGame()      // 设置 300ms 防抖定时器
+    save.clearSave()     // 清除存档 + 应清除定时器
+    expect(save.hasSave()).toBe(false)
+    // 等 350ms 确认定时器没触发（不会重新写入存档）
+    return new Promise(resolve => setTimeout(() => {
+      expect(save.hasSave()).toBe(false)
+      resolve()
+    }, 350))
+  })
+
+  it('防抖 saveGame 后 clearSave 可阻止延迟写入', () => {
+    save.saveGameNow()   // 先存一次
+    expect(save.hasSave()).toBe(true)
+    save.saveGame()      // 设置 300ms 防抖定时器
+    save.clearSave()     // 立即清除 + 清除定时器
+    expect(save.hasSave()).toBe(false)
+    return new Promise(resolve => setTimeout(() => {
+      expect(save.hasSave()).toBe(false)
+      resolve()
+    }, 350))
+  })
 })

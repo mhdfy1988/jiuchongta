@@ -23,6 +23,7 @@ export function createSaveSystem(game, bus) {
 
   // 立即写入（用于过关、退出等关键节点）
   function saveGameNow() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
     const raw = toRaw(game)
     const saveData = JSON.parse(JSON.stringify(raw))
     saveData.__version = SAVE_VERSION
