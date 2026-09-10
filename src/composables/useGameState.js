@@ -121,14 +121,15 @@ export function useGameState() {
         achievements.checkAll()
       }
     }
-    saveSys.saveStats(s)
     if (!s.unlockedChars?.includes('straight')) {
       s.unlockedChars = [...(s.unlockedChars || []), 'straight']
       showToast('解锁角色: 顺子牌手!', true)
     }
+    saveSys.saveStats(s)
     if (game.mode === 'hard') achievements.recordMax('maxScore', game.totalScore)
     if (!stats.value.unlockedEndless) {
       stats.value.unlockedEndless = true
+      saveSys.saveStats(stats.value)
       showToast('解锁无尽模式!', true)
     }
     saveSys.clearSave()
