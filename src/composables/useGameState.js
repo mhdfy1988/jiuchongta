@@ -105,7 +105,7 @@ export function useGameState() {
     const s = stats.value
     s.totalGames = (s.totalGames || 0) + 1
     saveSys.saveStats(s)
-    achievements.recordMax('maxScore', game.totalScore)
+    if (game.mode === 'hard') achievements.recordMax('maxScore', game.totalScore)
     showModal.value = 'gameover'
     saveSys.clearSave()
   })
@@ -126,7 +126,7 @@ export function useGameState() {
       s.unlockedChars = [...(s.unlockedChars || []), 'straight']
       showToast('解锁角色: 顺子牌手!', true)
     }
-    achievements.recordMax('maxScore', game.totalScore)
+    if (game.mode === 'hard') achievements.recordMax('maxScore', game.totalScore)
     if (!stats.value.unlockedEndless) {
       stats.value.unlockedEndless = true
       showToast('解锁无尽模式!', true)
