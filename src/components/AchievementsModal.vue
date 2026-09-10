@@ -5,9 +5,18 @@
     <div class="ach-progress">
       已解锁 {{ unlockedCount }} / {{ achievements.length }}
     </div>
+    <div class="ach-pages">
+      <button
+        v-for="p in totalPages"
+        :key="p"
+        class="page-btn"
+        :class="{ active: currentPage === p }"
+        @click="currentPage = p"
+      >{{ p }}</button>
+    </div>
     <div class="ach-grid">
       <div
-        v-for="ach in achievements"
+        v-for="ach in pagedAchievements"
         :key="ach.id"
         class="ach-card"
         :class="{ unlocked: isUnlocked(ach.id), locked: !isUnlocked(ach.id) }"
@@ -25,7 +34,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import BaseModal from './common/BaseModal.vue'
 import { ACHIEVEMENTS } from '../data/achievements.js'
 
@@ -35,6 +44,14 @@ const props = defineProps({
 defineEmits(['close'])
 
 const achievements = ACHIEVEMENTS
+const PER_PAGE = 10
+const currentPage = ref(1)
+
+const totalPages = computed(() => Math.ceil(achievements.length / PER_PAGE))
+const pagedAchievements = computed(() => {
+  const start = (currentPage.value - 1) * PER_PAGE
+  return achievements.slice(start, start + PER_PAGE)
+})
 
 const unlockedCount = computed(() =>
   achievements.filter(a => props.stats['ach_' + a.id]).length
@@ -56,13 +73,26 @@ function isUnlocked(id) {
 .modal-title { font-size: 18px; color: var(--gold); text-align: center; margin-bottom: 8px; }
 .ach-progress {
   text-align: center; color: var(--gold); font-size: 14px; font-weight: 700;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+}
+.ach-pages {
+  display: flex; gap: 6px; justify-content: center; margin-bottom: 14px;
+}
+.page-btn {
+  min-width: 32px; height: 32px; padding: 0 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px; color: var(--muted); transition: all 0.2s;
+}
+.page-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+.page-btn.active {
+  background: rgba(255,204,34,0.15); border-color: var(--gold);
+  color: var(--gold); box-shadow: 0 0 12px rgba(255,204,34,0.3);
 }
 .ach-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 10px;
-  overflow-y: auto; padding-right: 4px;
 }
 .ach-card {
   display: flex; flex-direction: column; align-items: center; text-align: center;
