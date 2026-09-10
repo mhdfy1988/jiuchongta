@@ -110,9 +110,9 @@ function isUnlocked(id) {
   box-shadow: 0 4px 20px rgba(255,204,34,0.2);
 }
 .ach-card.locked {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  opacity: 0.5;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  opacity: 0.75;
 }
 .ach-icon {
   font-size: 32px; width: 50px; height: 50px;
@@ -130,9 +130,9 @@ function isUnlocked(id) {
   font-size: 13px; font-weight: 700;
 }
 .ach-card.unlocked .ach-name { color: var(--gold); }
-.ach-card.locked .ach-name { color: var(--muted); }
+.ach-card.locked .ach-name { color: rgba(255,255,255,0.8); }
 .ach-desc {
-  font-size: 10px; color: var(--muted); line-height: 1.4;
+  font-size: 10px; color: rgba(255,255,255,0.6); line-height: 1.4;
 }
 .ach-status { margin-top: 2px; }
 .ach-done {
