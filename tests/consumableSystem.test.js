@@ -14,6 +14,8 @@ function makeGame() {
     handUpgrades: {},
     pendingConsumable: null,
     pendingSuit: null,
+    pendingOption: null,
+    playBuff: null,
   })
 }
 
@@ -129,5 +131,105 @@ describe('ConsumableSystem', () => {
     expect(result.success).toBe(true)
     expect(game.consumables.length).toBe(0)
     expect(game.pendingConsumable).toBeNull()
+  })
+
+  // ===== 礼券牌测试 =====
+
+  it('startUse 即时礼券（小费）叠加 playBuff 后消耗', () => {
+    game.consumables.push({ id: 'tip', type: 'voucher' })
+    const result = cons.startUse(0)
+    expect(result).toBe('applied')
+    expect(game.consumables.length).toBe(0)
+    expect(game.playBuff.chips).toBe(500)
+    expect(game.playBuff.mult).toBe(0)
+    expect(game.playBuff.finalMult).toBe(1)
+  })
+
+  it('startUse 即时礼券（掌声）叠加 playBuff', () => {
+    game.consumables.push({ id: 'applause', type: 'voucher' })
+    cons.startUse(0)
+    expect(game.playBuff.mult).toBe(10)
+  })
+
+  it('startUse 加倍券 finalMult=2', () => {
+    game.consumables.push({ id: 'double_coupon', type: 'voucher' })
+    cons.startUse(0)
+    expect(game.playBuff.finalMult).toBe(2)
+  })
+
+  it('多次即时礼券叠加（小费+掌声+加倍券）', () => {
+    game.consumables.push({ id: 'tip', type: 'voucher' })
+    game.consumables.push({ id: 'applause', type: 'voucher' })
+    game.consumables.push({ id: 'double_coupon', type: 'voucher' })
+    cons.startUse(0) // 小费
+    cons.startUse(0) // 掌声（下标因消耗自动前移）
+    cons.startUse(0) // 加倍券
+    expect(game.playBuff.chips).toBe(500)
+    expect(game.playBuff.mult).toBe(10)
+    expect(game.playBuff.finalMult).toBe(2)
+  })
+
+  it('startUse 升降机进入选牌状态', () => {
+    game.consumables.push({ id: 'elevator', type: 'voucher' })
+    const result = cons.startUse(0)
+    expect(result).toBe('selecting')
+    expect(game.pendingConsumable).not.toBeNull()
+    expect(game.pendingOption).toBeNull()
+  })
+
+  it('confirmUse 升降机 +1 点数', () => {
+    cards.initDeck()
+    cards.draw(8)
+    game.consumables.push({ id: 'elevator', type: 'voucher' })
+    cons.startUse(0)
+    cards.selectCard(game.hand[0].id)
+    cons.pickOption(1) // +1
+    const result = cons.confirmUse()
+    expect(result.success).toBe(true)
+    expect(game.consumables.length).toBe(0)
+    expect(game.pendingConsumable).toBeNull()
+    expect(game.pendingOption).toBeNull()
+  })
+
+  it('confirmUse 升降机未选选项报错', () => {
+    cards.initDeck()
+    cards.draw(8)
+    game.consumables.push({ id: 'elevator', type: 'voucher' })
+    cons.startUse(0)
+    cards.selectCard(game.hand[0].id)
+    const result = cons.confirmUse()
+    expect(result.error).toBeTruthy()
+  })
+
+  it('confirmUse 变装券改变点数', () => {
+    cards.initDeck()
+    cards.draw(8)
+    const originalRank = game.hand[0].rank
+    game.consumables.push({ id: 'disguise', type: 'voucher' })
+    cons.startUse(0)
+    cards.selectCard(game.hand[0].id)
+    cons.pickOption('A')
+    const result = cons.confirmUse()
+    expect(result.success).toBe(true)
+    expect(game.hand[0].rank).toBe('A')
+    expect(game.hand[0].rank).not.toBe(originalRank)
+  })
+
+  it('pickOption 设置 pendingOption', () => {
+    cons.pickOption('K')
+    expect(game.pendingOption).toBe('K')
+  })
+
+  it('cancelUse 清除 pendingOption', () => {
+    game.pendingOption = 'A'
+    cons.cancelUse()
+    expect(game.pendingOption).toBeNull()
+  })
+
+  it('sellConsumable 礼券牌卖出', () => {
+    game.consumables.push({ id: 'tip', type: 'voucher' }) // cost 3
+    const price = cons.sellConsumable(0)
+    expect(price).toBe(1)
+    expect(game.consumables.length).toBe(0)
   })
 })

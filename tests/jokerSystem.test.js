@@ -26,16 +26,6 @@ function findJokerWithOnDiscard() {
   return 'joker'
 }
 
-// 找一个 consumeOnUse 的小丑
-function findTempJoker() {
-  for (const rarity of ['common', 'rare', 'epic', 'legend']) {
-    for (const j of JOKERS_BY_RARITY[rarity] || []) {
-      if (j.consumeOnUse) return j.id
-    }
-  }
-  return null
-}
-
 describe('JokerSystem', () => {
   let game, jokers
 
@@ -110,17 +100,6 @@ describe('JokerSystem', () => {
     const def = jokers.getDef(game.jokers[0])
     expect(def.id).toBe('joker')
     expect(def.name).toBeTruthy()
-  })
-
-  it('consumeTempJokers 清理消耗型小丑', () => {
-    const tempId = findTempJoker()
-    if (!tempId) return // 没有临时小丑就跳过
-    jokers.addJoker('joker') // 永久
-    jokers.addJoker(tempId) // 临时
-    expect(game.jokers.length).toBe(2)
-    jokers.consumeTempJokers()
-    expect(game.jokers.length).toBe(1)
-    expect(game.jokers[0].id).toBe('joker')
   })
 
   it('triggerOnPlay 不报错', () => {

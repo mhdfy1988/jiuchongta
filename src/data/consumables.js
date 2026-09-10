@@ -31,8 +31,37 @@ export const PLANETS = [
   { id:'pluto', name:'冥王星', icon:'♇', cost:4, handType:'高牌', desc:'升级高牌 +2底分+1倍率' },
 ]
 
+// ---------- 礼券牌（一次性用品） ----------
+// 两种生效方式：
+//   instant: true        使用即叠加到 game.playBuff，下次出牌结算时生效
+//   selectCount+options  先选手牌，再从 options 里选一项（applyOption 应用）
+function addPlayBuff(game, buff) {
+  if (!game.playBuff) game.playBuff = { chips: 0, mult: 0, finalMult: 1 }
+  game.playBuff.chips += buff.chips || 0
+  game.playBuff.mult += buff.mult || 0
+  game.playBuff.finalMult *= buff.finalMult || 1
+}
+
+export const VOUCHERS = [
+  { id:'tip', name:'小费', icon:'💵', cost:3, desc:'下次出牌 +500底分', instant:true,
+    apply: (game) => addPlayBuff(game, { chips: 500 }) },
+  { id:'applause', name:'掌声', icon:'👏', cost:3, desc:'下次出牌 +10倍率', instant:true,
+    apply: (game) => addPlayBuff(game, { mult: 10 }) },
+  { id:'double_coupon', name:'加倍券', icon:'🎟️', cost:5, desc:'下次出牌 最终分数×2', instant:true,
+    apply: (game) => addPlayBuff(game, { finalMult: 2 }) },
+  { id:'elevator', name:'升降机', icon:'🛗', cost:3, desc:'选1张手牌 点数+1或-1', selectCount:1,
+    options: [{ label:'点数 +1', value:1 }, { label:'点数 -1', value:-1 }],
+    use: () => 'choose_option',
+    applyOption: (card, v) => { const i = RANKS.indexOf(card.rank); if (i >= 0) card.rank = RANKS[(i + v + RANKS.length) % RANKS.length] } },
+  { id:'disguise', name:'变装券', icon:'🎭', cost:4, desc:'选1张手牌 变任意点数(花色不变)', selectCount:1,
+    options: RANKS.map(r => ({ label: r, value: r })),
+    use: () => 'choose_option',
+    applyOption: (card, v) => { card.rank = v } },
+]
+
 export function getConsumableDef(consumable) {
   if (consumable.type === 'tarot') return TAROTS.find(t => t.id === consumable.id)
   if (consumable.type === 'planet') return PLANETS.find(p => p.id === consumable.id)
+  if (consumable.type === 'voucher') return VOUCHERS.find(v => v.id === consumable.id)
   return null
 }

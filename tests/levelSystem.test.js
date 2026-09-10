@@ -117,6 +117,22 @@ describe('LevelSystem', () => {
     expect(game.discardsLeft).toBe(4)
   })
 
+  it('持有补票时下一层出牌/换牌各+1', () => {
+    game.jokers = [{ id: 're_ticket', data: {} }]
+    level.startRun('simple', null)
+    level.nextLevel()
+    expect(game.handsLeft).toBe(5)
+    expect(game.discardsLeft).toBe(5)
+  })
+
+  it('复活时补票加成同样生效', () => {
+    game.jokers = [{ id: 're_ticket', data: {} }]
+    game.lives = 1
+    level.loseLevel()
+    expect(game.handsLeft).toBe(5)
+    expect(game.discardsLeft).toBe(5)
+  })
+
   it('nextLevel 第 9 层后普通模式通关', () => {
     game.level = 9
     game.mode = 'simple'

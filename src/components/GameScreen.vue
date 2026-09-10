@@ -106,7 +106,6 @@
             :def="getJokerDef(joker) || {}"
             size="md"
             :locked="joker.data?.locked"
-            :temporary="getJokerDef(joker)?.temp"
             :interactive="false"
             :stacks="joker.data?.stacks || 0"
             :suit="joker.data?.suit || ''"

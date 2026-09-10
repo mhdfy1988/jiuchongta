@@ -1,5 +1,5 @@
 import { JOKERS } from '../data/jokers.js'
-import { TAROTS, PLANETS } from '../data/consumables.js'
+import { TAROTS, PLANETS, VOUCHERS } from '../data/consumables.js'
 import { BOSS_DEBUFFS } from '../data/bosses.js'
 import { HAND_TYPES } from '../data/constants.js'
 
@@ -19,10 +19,14 @@ export const TAROT_MAP = new Map(TAROTS.map(t => [t.id, t]))
 // 星球牌 id -> 定义
 export const PLANET_MAP = new Map(PLANETS.map(p => [p.id, p]))
 
+// 礼券牌 id -> 定义
+export const VOUCHER_MAP = new Map(VOUCHERS.map(v => [v.id, v]))
+
 // 统一的消耗品查找（按 type+id）
 export function getConsumableDef(type, id) {
   if (type === 'tarot') return TAROT_MAP.get(id) || null
   if (type === 'planet') return PLANET_MAP.get(id) || null
+  if (type === 'voucher') return VOUCHER_MAP.get(id) || null
   return null
 }
 

@@ -1,4 +1,4 @@
-import { SUITS, RANKS, RANK_VALUES, FACE_CARDS } from './constants.js'
+import { SUITS, RANKS, RANK_VALUES } from './constants.js'
 
 export const JOKERS = [
   // --- 底分小丑 (8) ---
@@ -13,7 +13,7 @@ export const JOKERS = [
     effect: (ctx) => { if (ctx.playedCards.length === 4) { ctx.joker.data.stacks = (ctx.joker.data.stacks||0) + 15; } ctx.chips += ctx.joker.data.stacks || 0; } },
   { id:'scary_face', name:'恐怖人头', icon:'😱', rarity:'common', cost:3, type:'chips', temp:false,
     desc:'每张计分人头牌 +35底分',
-    effect: (ctx) => { ctx.chips += ctx.scoringCards.filter(c => FACE_CARDS.includes(c.rank)).length * 35; } },
+    effect: (ctx) => { ctx.chips += ctx.scoringCards.filter(c => ctx.isFace(c)).length * 35; } },
   { id:'castle', name:'城堡', icon:'🏰', rarity:'rare', cost:5, type:'chips', temp:false,
     desc:'弃掉指定花色1张 永久+10底分',
     initData: () => ({ stacks: 0, suit: SUITS[Math.floor(Math.random()*4)] }),
@@ -21,7 +21,7 @@ export const JOKERS = [
     onDiscard: (cards, joker) => { const suit = joker.data.suit; if (!suit) { joker.data.suit = SUITS[Math.floor(Math.random()*4)]; } cards.forEach(c => { if (c.suit === joker.data.suit) joker.data.stacks = (joker.data.stacks||0) + 10; }); } },
   { id:'stone', name:'石头小丑', icon:'🪨', rarity:'rare', cost:5, type:'chips', temp:false,
     desc:'无人头牌时 每张+45底分',
-    effect: (ctx) => { if (!ctx.scoringCards.some(c => FACE_CARDS.includes(c.rank))) ctx.chips += ctx.scoringCards.length * 45; } },
+    effect: (ctx) => { if (!ctx.scoringCards.some(c => ctx.isFace(c))) ctx.chips += ctx.scoringCards.length * 45; } },
   { id:'short_ladder', name:'短梯', icon:'🪜', rarity:'rare', cost:5, type:'chips', temp:false,
     desc:'点数都≤8时 每张+40底分',
     effect: (ctx) => { if (ctx.scoringCards.every(c => RANK_VALUES[c.rank] <= 8)) ctx.chips += ctx.scoringCards.length * 40; } },
@@ -39,7 +39,7 @@ export const JOKERS = [
   { id:'half', name:'半张小丑', icon:'🌗', rarity:'common', cost:3, type:'mult', temp:false,
     desc:'打出≤3张 +18倍率', effect: (ctx) => { if (ctx.playedCards.length <= 3) ctx.mult += 18; } },
   { id:'smiley', name:'微笑表情', icon:'😊', rarity:'common', cost:3, type:'mult', temp:false,
-    desc:'每张计分人头牌 +5倍率', effect: (ctx) => { ctx.mult += ctx.scoringCards.filter(c => FACE_CARDS.includes(c.rank)).length * 5; } },
+    desc:'每张计分人头牌 +5倍率', effect: (ctx) => { ctx.mult += ctx.scoringCards.filter(c => ctx.isFace(c)).length * 5; } },
   { id:'spade_joker', name:'黑桃小丑', icon:'♠️', rarity:'common', cost:3, type:'mult', temp:false,
     desc:'每张黑桃 +5倍率', effect: (ctx) => { ctx.mult += ctx.scoringCards.filter(c => c.suit === '♠').length * 5; } },
   { id:'heart_joker', name:'红桃小丑', icon:'♥️', rarity:'common', cost:3, type:'mult', temp:false,
@@ -72,7 +72,7 @@ export const JOKERS = [
   // --- 乘倍率小丑 (9) ---
   { id:'photo', name:'照片', icon:'📸', rarity:'rare', cost:5, type:'xmult', temp:false,
     desc:'有头牌时 第一张头牌+面值底分',
-    effect: (ctx) => { const first = ctx.scoringCards.find(c => FACE_CARDS.includes(c.rank)); if (first) { const val = RANK_VALUES[first.rank] + (ctx.game.cardEnhancements[first.id]||0); ctx.chips += val; } } },
+    effect: (ctx) => { const first = ctx.scoringCards.find(c => ctx.isFace(c)); if (first) { const val = RANK_VALUES[first.rank] + (ctx.game.cardEnhancements[first.id]||0); ctx.chips += val; } } },
   { id:'ghost', name:'重影', icon:'👻', rarity:'rare', cost:5, type:'xmult', temp:false,
     desc:'有梅花和其他花色 倍率×2',
     effect: (ctx) => { const hasClub = ctx.scoringCards.some(c => c.suit === '♣'); const hasOther = ctx.scoringCards.some(c => c.suit !== '♣'); if (hasClub && hasOther) ctx.mult *= 2; } },
@@ -87,6 +87,7 @@ export const JOKERS = [
     effect: (ctx) => { const suits = new Set(ctx.scoringCards.map(c => c.suit)); if (suits.size >= 4) { ctx.chips += 50; ctx.mult *= 3; } } },
   { id:'ancient', name:'古老小丑', icon:'🗿', rarity:'legend', cost:10, type:'xmult', temp:false,
     desc:'随机花色该花色计分×1.5',
+    initData: () => ({ suit: SUITS[Math.floor(Math.random()*4)] }),
     effect: (ctx) => { const suit = ctx.joker.data.suit; if (!suit) ctx.joker.data.suit = SUITS[Math.floor(Math.random()*4)]; if (ctx.scoringCards.some(c => c.suit === ctx.joker.data.suit)) ctx.mult *= 1.5; } },
   { id:'order', name:'秩序', icon:'📏', rarity:'legend', cost:10, type:'xmult', temp:false,
     desc:'顺子/同花顺/皇家同花顺×3',
@@ -97,7 +98,7 @@ export const JOKERS = [
   { id:'quintet', name:'五重奏', icon:'🎵', rarity:'legend', cost:10, type:'xmult', temp:false,
     desc:'五条倍率×5', effect: (ctx) => { if (ctx.handType === '五条') ctx.mult *= 5; } },
 
-  // --- 功能小丑 (10) ---
+  // --- 功能小丑 (11) ---
   { id:'splash', name:'飞溅', icon:'💦', rarity:'common', cost:3, type:'utility', temp:false,
     desc:'所有打出的牌都计分', effect: (ctx) => {}, modifyScoring: (played, scoring) => [...played] },
   { id:'fuzzy', name:'模糊', icon:'🌫️', rarity:'rare', cost:5, type:'utility', temp:false,
@@ -120,20 +121,8 @@ export const JOKERS = [
     effect: (ctx) => { const leftmost = ctx.game.jokers[0]; if (leftmost && leftmost !== ctx.joker) { const def = _JOKER_LOOKUP.get(leftmost.id); if (def && def.effect && def.type !== 'utility') { const tempCtx = {...ctx, joker: leftmost}; def.effect(tempCtx); ctx.chips = tempCtx.chips; ctx.mult = tempCtx.mult; } } } },
   { id:'neighbor', name:'邻座', icon:'🪑', rarity:'legend', cost:10, type:'utility', temp:false,
     desc:'四条+第5张差1 变五条', effect: (ctx) => {}, autoFive: true },
-
-  // --- 临时小丑 (6) ---
-  { id:'tip', name:'小费', icon:'💵', rarity:'common', cost:3, type:'temp', temp:true,
-    desc:'本次出牌+500底分', effect: (ctx) => { ctx.chips += 500; }, consumeOnUse: true },
-  { id:'applause', name:'掌声', icon:'👏', rarity:'common', cost:3, type:'temp', temp:true,
-    desc:'本次出牌+10倍率', effect: (ctx) => { ctx.mult += 10; }, consumeOnUse: true },
-  { id:'re_ticket', name:'补票', icon:'🎫', rarity:'rare', cost:5, type:'temp', temp:true,
-    desc:'换牌+1 出牌+1', effect: (ctx) => {}, consumeOnUse: true, onPurchase: (game) => { game.handsLeft++; game.discardsLeft++; } },
-  { id:'elevator', name:'升降机', icon:'🛗', rarity:'legend', cost:10, type:'temp', temp:true,
-    desc:'选1张打出牌变同花色相邻点数', effect: (ctx) => {}, consumeOnUse: true },
-  { id:'double_coupon', name:'加倍券', icon:'🎟️', rarity:'legend', cost:10, type:'temp', temp:true,
-    desc:'本次出牌最终分数×2', effect: (ctx) => { ctx.finalMult = 2; }, consumeOnUse: true },
-  { id:'disguise', name:'变装券', icon:'🎭', rarity:'legend', cost:10, type:'temp', temp:true,
-    desc:'指定1张打出牌变同花色任意点数', effect: (ctx) => {}, consumeOnUse: true },
+  { id:'re_ticket', name:'补票', icon:'🎫', rarity:'rare', cost:5, type:'utility', temp:false,
+    desc:'每层出牌/换牌各+1', effect: (ctx) => {}, handsBonus: 1, discardsBonus: 1 },
 ]
 
 // 内部 O(1) 查找表，避免 Blueprint/Brainstorm 用 JOKERS.find O(n) 查找

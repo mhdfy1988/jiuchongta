@@ -197,3 +197,43 @@ describe('计分', () => {
     expect(r.total).toBe(Math.floor(r.chips * r.mult))
   })
 })
+
+describe('幻视联动', () => {
+  // 一对(2,2)：基础(10,2) + 牌面 2+2 = 14底分，2张计分牌均非人头
+  const pairCards = () => makeCards([['2','♠'],['2','♥'],['9','♣'],['5','♦'],['7','♠']])
+
+  it('幻视+恐怖人头：所有计分牌按人头 +35', () => {
+    const game = fakeGame({ jokers: [{ id: 'vision', data: {} }, { id: 'scary_face', data: {} }] })
+    const r = calculateScore(pairCards(), game)
+    expect(r.chips).toBe(14 + 2 * 35) // 84
+    expect(r.mult).toBe(2)
+  })
+
+  it('无幻视：恐怖人头只认真实 J/Q/K', () => {
+    const game = fakeGame({ jokers: [{ id: 'scary_face', data: {} }] })
+    const r = calculateScore(pairCards(), game)
+    expect(r.chips).toBe(14) // 没有人头牌，不加成
+  })
+
+  it('幻视+微笑表情：所有计分牌 +5倍率', () => {
+    const game = fakeGame({ jokers: [{ id: 'vision', data: {} }, { id: 'smiley', data: {} }] })
+    const r = calculateScore(pairCards(), game)
+    expect(r.mult).toBe(2 + 2 * 5) // 12
+  })
+
+  it('幻视+石头小丑：人头牌判定反转后石头不生效', () => {
+    const game = fakeGame({ jokers: [{ id: 'vision', data: {} }, { id: 'stone', data: {} }] })
+    const r = calculateScore(pairCards(), game)
+    expect(r.chips).toBe(14) // 全部视为人头 → 石头无人头条件不成立
+  })
+
+  it('幻视遇上 seal_king Boss：所有计分牌都被过滤', () => {
+    const game = fakeGame({
+      jokers: [{ id: 'vision', data: {} }],
+      bossDebuff: { id: 'seal_king' },
+    })
+    const r = calculateScore(pairCards(), game)
+    expect(r.scoringCards.length).toBe(0)
+    expect(r.chips).toBe(10) // 只剩牌型基础分
+  })
+})

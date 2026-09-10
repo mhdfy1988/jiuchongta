@@ -6,7 +6,7 @@ const { SFX } = useAudio()
 
 /**
  * 消耗品系统：管理消耗品使用
- * 负责的 state 字段：consumables, pendingConsumable, pendingSuit
+ * 负责的 state 字段：consumables, pendingConsumable, pendingSuit, pendingOption, playBuff
  */
 export function createConsumableSystem(game, bus, cardSystem) {
 
@@ -42,9 +42,19 @@ export function createConsumableSystem(game, bus, cardSystem) {
       return 'applied'
     }
 
-    // 塔罗牌进入待选牌状态（存对象引用，避免下标因卖出错位）
+    // 即时礼券（小费/掌声/加倍券）：叠加到下次出牌增益
+    if (def.instant) {
+      def.apply(game)
+      game.consumables.splice(idx, 1)
+      SFX.useConsumable()
+      bus.emit(EVENTS.CONSUMABLE_USED, { type: cons.type, id: cons.id })
+      return 'applied'
+    }
+
+    // 其余进入待选牌状态（存对象引用，避免下标因卖出错位）
     game.pendingConsumable = cons
     game.pendingSuit = null
+    game.pendingOption = null
     cardSystem.clearSelection()
     return 'selecting'
   }
@@ -64,9 +74,14 @@ export function createConsumableSystem(game, bus, cardSystem) {
     game.pendingSuit = suit
   }
 
+  function pickOption(value) {
+    game.pendingOption = value
+  }
+
   function cancelUse() {
     game.pendingConsumable = null
     game.pendingSuit = null
+    game.pendingOption = null
     cardSystem.clearSelection()
   }
 
@@ -79,12 +94,13 @@ export function createConsumableSystem(game, bus, cardSystem) {
     return { idx, cons, def: getConsumableDef(cons.type, cons.id) }
   }
 
-  // 确认使用塔罗牌
+  // 确认使用消耗品（塔罗/礼券选牌流程）
   function confirmUse() {
     const info = getPendingInfo()
     if (!info) {
       game.pendingConsumable = null
       game.pendingSuit = null
+      game.pendingOption = null
       return false
     }
     const { idx, cons, def } = info
@@ -100,6 +116,9 @@ export function createConsumableSystem(game, bus, cardSystem) {
     } else if (result === 'choose_suit') {
       if (!game.pendingSuit) return { error: '请先选择花色' }
       selectedCards[0].suit = game.pendingSuit
+    } else if (result === 'choose_option') {
+      if (game.pendingOption === null || game.pendingOption === undefined) return { error: '请先选择一个选项' }
+      def.applyOption(selectedCards[0], game.pendingOption)
     } else if (result === false) {
       return { error: '选择的手牌数量不对' }
     }
@@ -107,9 +126,10 @@ export function createConsumableSystem(game, bus, cardSystem) {
     game.consumables.splice(idx, 1)
     game.pendingConsumable = null
     game.pendingSuit = null
+    game.pendingOption = null
     cardSystem.clearSelection()
     SFX.useConsumable()
-    bus.emit(EVENTS.CONSUMABLE_USED, { type: 'tarot', id: cons.id })
+    bus.emit(EVENTS.CONSUMABLE_USED, { type: cons.type, id: cons.id })
     return { success: true, name: def.name }
   }
 
@@ -125,6 +145,7 @@ export function createConsumableSystem(game, bus, cardSystem) {
     sellConsumable,
     startUse,
     pickSuit,
+    pickOption,
     cancelUse,
     confirmUse,
     getPendingDef,

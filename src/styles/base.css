@@ -73,7 +73,7 @@ body::before {
 .joker-card.rarity-rare { background: linear-gradient(160deg, rgba(255,255,255,0.1) 0%, transparent 50%), linear-gradient(145deg, #0a1a3e, #1a2d5e); border: 2px solid var(--rarity-rare); box-shadow: var(--shadow), 0 0 10px rgba(0,153,255,0.15); }
 .joker-card.rarity-epic { background: linear-gradient(160deg, rgba(255,255,255,0.1) 0%, transparent 50%), linear-gradient(145deg, #2a0a3e, #3a1a5e); border: 2px solid var(--rarity-epic); box-shadow: var(--shadow), 0 0 10px rgba(170,68,255,0.15); }
 .joker-card.rarity-legend { background: linear-gradient(160deg, rgba(255,255,255,0.1) 0%, transparent 50%), linear-gradient(145deg, #3a2a0a, #5e4a1a); border: 2px solid var(--rarity-legend); box-shadow: var(--shadow), 0 0 15px rgba(255,204,34,0.2); }
-.joker-card.temporary { border-style: dashed; }
+
 .joker-card.locked { opacity: 0.6; }
 .joker-card:hover { transform: translateY(-8px) scale(1.05); }
 .joker-card .j-name { font-size: 9px; font-weight: 800; text-align: center; line-height: 1.15; }

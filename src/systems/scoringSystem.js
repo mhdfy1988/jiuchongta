@@ -147,9 +147,13 @@ export function createScoringSystem() {
     const idSet = buildJokerIdSet(game.jokers)
     if (idSet.has('splash')) scoringCards = [...effectiveCards]
 
+    // 幻视：所有计分牌视为人头牌（影响人头相关的小丑与Boss判定）
+    const hasVision = idSet.has('vision')
+    const isFace = (c) => hasVision || FACE_CARDS.includes(c.rank)
+
     // Boss 过滤（人头牌不计分,只影响底分不影响牌型）
     if (game.bossDebuff?.id === 'seal_king') {
-      scoringCards = scoringCards.filter(c => !FACE_CARDS.includes(c.rank))
+      scoringCards = scoringCards.filter(c => !isFace(c))
     }
 
     // 基础：每张计分牌的点数
@@ -162,7 +166,7 @@ export function createScoringSystem() {
     const hasJoySorrow = idSet.has('joy_sorrow')
     let extraTriggers = {}
     if (hasHanger && scoringCards.length > 0) extraTriggers[0] = (extraTriggers[0] || 0) + 2
-    if (hasJoySorrow) scoringCards.forEach((c, i) => { if (FACE_CARDS.includes(c.rank)) extraTriggers[i] = (extraTriggers[i] || 0) + 1 })
+    if (hasJoySorrow) scoringCards.forEach((c, i) => { if (isFace(c)) extraTriggers[i] = (extraTriggers[i] || 0) + 1 })
     for (const idx in extraTriggers) {
       const card = scoringCards[idx]
       if (!card) continue
@@ -182,7 +186,7 @@ export function createScoringSystem() {
     const ctx = {
       chips, mult, scoringCards, playedCards: cards, handType: evalResult.type,
       handLeft: game.handsLeft, discardLeft: game.discardsLeft, deckCount: game.deck.length,
-      game, joker: null, finalMult: 1,
+      game, joker: null, finalMult: 1, isFace,
     }
 
     const jokers = game.jokers
@@ -200,6 +204,14 @@ export function createScoringSystem() {
       if (dChips > 0 || dMult > 0) {
         triggerLog.push({ name: def.name, chips: dChips, mult: dMult, jokerIdx: ji })
       }
+    }
+
+    // 礼券增益（小费/掌声/加倍券）：下次出牌一次性生效
+    if (game.playBuff) {
+      const b = game.playBuff
+      if (b.chips) { ctx.chips += b.chips; triggerLog.push({ name: '礼券', chips: b.chips, mult: 0 }) }
+      if (b.mult) { ctx.mult += b.mult; triggerLog.push({ name: '礼券', chips: 0, mult: b.mult }) }
+      if (b.finalMult && b.finalMult !== 1) ctx.finalMult *= b.finalMult
     }
 
     chips = ctx.chips

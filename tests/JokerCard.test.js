@@ -49,13 +49,6 @@ describe('JokerCard', () => {
     expect(wrapper.classes()).toContain('is-locked')
   })
 
-  it('temporary 临时样式', () => {
-    const wrapper = mount(JokerCard, {
-      props: { def: mockDef, temporary: true },
-    })
-    expect(wrapper.classes()).toContain('is-temporary')
-  })
-
   it('confirmMode 显示确认遮罩', () => {
     const wrapper = mount(JokerCard, {
       props: { def: mockDef, confirmMode: true },

@@ -36,8 +36,8 @@ export function useGameState() {
     rerollCount: 0, levelStartMoney: 5, lives: 0,
     totalScore: 0, maxSingleScore: 0,
     animating: false, consumables: [], handUpgrades: {},
-    pendingConsumable: null, pendingSuit: null, lastPlayedHand: null,
-    calledOutId: null, cleared: false,
+    pendingConsumable: null, pendingSuit: null, pendingOption: null, lastPlayedHand: null,
+    calledOutId: null, cleared: false, playBuff: null,
   })
 
   const stats = ref({})
@@ -153,6 +153,8 @@ export function useGameState() {
     game.consumables = []
     game.pendingConsumable = null
     game.pendingSuit = null
+    game.pendingOption = null
+    game.playBuff = null
     if (scoreTimer) { clearTimeout(scoreTimer); scoreTimer = null }
     pendingScoreResult = null
     lastScoreResult.value = null
@@ -244,8 +246,8 @@ export function useGameState() {
       })
     }
 
-    // 清理消耗型小丑
-    jokers.consumeTempJokers()
+    // 礼券增益一次性消耗
+    game.playBuff = null
 
     // 移除已出牌，补牌
     cards.removeSelected()
@@ -379,6 +381,7 @@ export function useGameState() {
   function useConsumable(idx) { consumables.startUse(idx) }
   function sellConsumable(idx) { consumables.sellConsumable(idx); saveSys.saveGame() }
   function pickSuit(suit) { consumables.pickSuit(suit) }
+  function pickOption(value) { consumables.pickOption(value) }
   function confirmConsumable() {
     const result = consumables.confirmUse()
     if (result?.error) showToast(result.error)
@@ -413,7 +416,7 @@ export function useGameState() {
     // 商店
     generateShopItems, buyShopItem, sellJoker, deleteJoker, rerollShop, buyConsumable,
     // 消耗品
-    useConsumable, sellConsumable, pickSuit, confirmConsumable, cancelConsumable,
+    useConsumable, sellConsumable, pickSuit, pickOption, confirmConsumable, cancelConsumable,
     // 其他
     checkAchievements,
     saveGame: () => saveSys.saveGame(),

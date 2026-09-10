@@ -2,6 +2,7 @@ import { ref, toRaw } from 'vue'
 import { bus, EVENTS } from '../utils/eventBus.js'
 import { storage } from '../utils/storage.js'
 import { SAVE_KEY, SAVE_VERSION } from '../data/constants.js'
+import { getJoker } from '../utils/gameData.js'
 
 const STATS_KEY = 'pokerRoguelikeStats'
 
@@ -55,6 +56,9 @@ export function createSaveSystem(game, bus) {
     game.selected = [] // 读档后清空选中
     game.pendingConsumable = null // 待选状态不随存档恢复
     game.pendingSuit = null
+    game.pendingOption = null
+    // 兼容旧存档：过滤已被移除的小丑（如原临时小丑，已迁移为礼券）
+    game.jokers = (game.jokers || []).filter(j => getJoker(j.id))
     // 恢复 silencedJoker 对象引用（存档里存的是下标）
     if (typeof data.silencedJoker === 'number' && data.silencedJoker >= 0 && data.silencedJoker < game.jokers.length) {
       game.silencedJoker = game.jokers[data.silencedJoker]

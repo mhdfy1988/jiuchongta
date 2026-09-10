@@ -5,6 +5,7 @@
       <button class="tab-btn" :class="{ active: tab === 'jokers' }" @click="switchTab('jokers')">🃏 小丑牌 ({{ jokers.length }})</button>
       <button class="tab-btn" :class="{ active: tab === 'tarots' }" @click="switchTab('tarots')">🔮 塔罗牌 ({{ tarots.length }})</button>
       <button class="tab-btn" :class="{ active: tab === 'planets' }" @click="switchTab('planets')">🪐 星球牌 ({{ planets.length }})</button>
+      <button class="tab-btn" :class="{ active: tab === 'vouchers' }" @click="switchTab('vouchers')">🎟️ 礼券牌 ({{ vouchers.length }})</button>
       <button class="tab-btn" :class="{ active: tab === 'bosses' }" @click="switchTab('bosses')">👹 Boss ({{ allBosses.length }})</button>
     </div>
 
@@ -19,7 +20,6 @@
           <div class="ic-tags">
             <span class="ic-tag" :class="`tag-${joker.rarity}`">{{ rarityName(joker.rarity) }}</span>
             <span class="ic-tag tag-type">{{ typeName(joker.type) }}</span>
-            <span v-if="joker.temp" class="ic-tag tag-temp">临时</span>
           </div>
           <div class="ic-desc">{{ joker.desc }}</div>
           <div class="ic-cost">${{ joker.cost }}</div>
@@ -54,6 +54,21 @@
           </div>
           <div class="ic-desc">{{ planet.desc }}</div>
           <div class="ic-cost">${{ planet.cost }}</div>
+        </div>
+      </div>
+
+      <!-- 礼券牌 -->
+      <div v-if="tab === 'vouchers'" class="card-grid">
+        <div v-for="voucher in pagedItems" :key="voucher.id" class="info-card voucher-card">
+          <div class="ic-header">
+            <span class="ic-icon">{{ voucher.icon }}</span>
+            <span class="ic-name">{{ voucher.name }}</span>
+          </div>
+          <div class="ic-tags">
+            <span class="ic-tag tag-voucher">礼券牌</span>
+          </div>
+          <div class="ic-desc">{{ voucher.desc }}</div>
+          <div class="ic-cost">${{ voucher.cost }}</div>
         </div>
       </div>
 
@@ -102,7 +117,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import BaseModal from './common/BaseModal.vue'
 import { JOKERS } from '../data/jokers.js'
-import { TAROTS, PLANETS } from '../data/consumables.js'
+import { TAROTS, PLANETS, VOUCHERS } from '../data/consumables.js'
 import { BOSS_DEBUFFS } from '../data/bosses.js'
 
 const props = defineProps({ state: Object })
@@ -117,6 +132,7 @@ const rows = ref(3)
 const jokers = JOKERS
 const tarots = TAROTS
 const planets = PLANETS
+const vouchers = VOUCHERS
 const bossGroups = BOSS_DEBUFFS
 const allBosses = Object.values(BOSS_DEBUFFS).flat()
 const bossTierNames = { weak: '初级', medium: '中级', strong: '高级' }
@@ -135,6 +151,7 @@ const currentList = computed(() => {
   if (tab.value === 'jokers') return jokers
   if (tab.value === 'tarots') return tarots
   if (tab.value === 'planets') return planets
+  if (tab.value === 'vouchers') return vouchers
   return [] // Boss 不走分页
 })
 
@@ -181,7 +198,7 @@ function rarityName(r) {
 }
 
 function typeName(t) {
-  return { chips: '底分', mult: '倍率', xmult: '乘倍率', utility: '功能', temp: '临时' }[t] || t
+  return { chips: '底分', mult: '倍率', xmult: '乘倍率', utility: '功能' }[t] || t
 }
 
 function close() {
@@ -227,10 +244,11 @@ h2 { font-size: 20px; color: var(--gold); margin-bottom: 14px; text-align: cente
 .tag-epic { background: rgba(170,68,255,0.15); color: var(--purple); }
 .tag-legend { background: rgba(255,204,34,0.15); color: var(--gold); }
 .tag-type { background: rgba(255,255,255,0.06); color: var(--muted); }
-.tag-temp { background: rgba(255,100,100,0.15); color: #ff6464; }
 .tag-tarot { background: rgba(170,68,255,0.15); color: var(--purple); }
 .tag-planet { background: rgba(68,170,255,0.15); color: var(--blue); }
+.tag-voucher { background: rgba(255,204,34,0.15); color: var(--gold); }
 .tag-hand { background: rgba(255,204,34,0.1); color: var(--gold); }
+.voucher-card { border-color: rgba(255,204,34,0.3); }
 .ic-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
 .ic-cost { font-size: 13px; font-weight: 800; color: var(--gold); align-self: flex-end; }
 

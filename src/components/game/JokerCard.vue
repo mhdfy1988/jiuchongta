@@ -8,7 +8,6 @@
         'is-sold': sold,
         'is-locked': locked,
         'is-confirm': confirmMode,
-        'is-temporary': temporary,
         'no-hover': !interactive,
       }
     ]"
@@ -58,7 +57,6 @@ const props = defineProps({
   size: { type: String, default: 'md' }, // sm | md | lg
   sold: { type: Boolean, default: false },
   locked: { type: Boolean, default: false },
-  temporary: { type: Boolean, default: false },
   confirmMode: { type: Boolean, default: false },
   interactive: { type: Boolean, default: true },
   stacks: { type: Number, default: 0 },
@@ -236,10 +234,5 @@ function handleClick(e) {
   background: linear-gradient(145deg, #3a2a0a, #5e4a1a);
   border-color: var(--rarity-legend, #e0a020);
   color: #fff0c0;
-}
-
-.is-temporary {
-  opacity: 0.7;
-  border-style: dashed;
 }
 </style>

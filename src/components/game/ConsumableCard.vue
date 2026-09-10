@@ -40,7 +40,7 @@ const props = defineProps({
 const emit = defineEmits(['click', 'hover', 'leave', 'contextmenu', 'cancel'])
 
 const sizeClass = computed(() => `size-${props.size}`)
-const typeLabel = computed(() => props.type === 'tarot' ? '塔罗牌' : '星球牌')
+const typeLabel = computed(() => props.type === 'tarot' ? '塔罗牌' : props.type === 'planet' ? '星球牌' : '礼券牌')
 
 function handleClick(e) {
   if (!props.sold) emit('click', e)
@@ -120,5 +120,10 @@ function handleClick(e) {
   background: linear-gradient(145deg, rgba(20, 60, 120, 0.8), rgba(10, 40, 80, 0.9));
   border-color: var(--blue, #2196f3);
   color: #c0e8ff;
+}
+.consumable-card.voucher {
+  background: linear-gradient(145deg, rgba(120, 90, 20, 0.8), rgba(80, 60, 10, 0.9));
+  border-color: var(--gold, #ffcc22);
+  color: #ffe8a0;
 }
 </style>

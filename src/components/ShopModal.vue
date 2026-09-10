@@ -160,7 +160,8 @@ function showOwnedJokerTip(e, def, joker) {
 
 function showOwnedConsTip(e, def, type) {
   if (confirming.value) return
-  showTip(e, { icon: def.icon, name: def.name, subtitle: type === 'tarot' ? '塔罗牌' : '星球牌', desc: def.desc })
+  const label = type === 'tarot' ? '塔罗牌' : type === 'planet' ? '星球牌' : '礼券牌'
+  showTip(e, { icon: def.icon, name: def.name, subtitle: label, desc: def.desc })
 }
 
 // ---------- 卖出 ----------

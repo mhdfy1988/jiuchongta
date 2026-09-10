@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { bus, EVENTS } from '../utils/eventBus.js'
-import { getJoker, JOKERS_BY_RARITY, getConsumableDef, TAROT_MAP, PLANET_MAP } from '../utils/gameData.js'
+import { getJoker, JOKERS_BY_RARITY, getConsumableDef, TAROT_MAP, PLANET_MAP, VOUCHER_MAP } from '../utils/gameData.js'
 import { useAudio } from '../composables/useAudio.js'
 
 const { SFX } = useAudio()
@@ -26,14 +26,19 @@ export function createShopSystem(game, bus) {
     consumables.value = []
     const consCount = Math.random() < 0.5 ? 2 : 1
     for (let i = 0; i < consCount; i++) {
-      if (Math.random() < 0.6) {
+      const roll = Math.random()
+      if (roll < 0.45) {
         const tArr = Array.from(TAROT_MAP.values())
         const t = tArr[Math.floor(Math.random() * tArr.length)]
         consumables.value.push({ def: { ...t }, type: 'tarot', sold: false })
-      } else {
+      } else if (roll < 0.80) {
         const pArr = Array.from(PLANET_MAP.values())
         const p = pArr[Math.floor(Math.random() * pArr.length)]
         consumables.value.push({ def: { ...p }, type: 'planet', sold: false })
+      } else {
+        const vArr = Array.from(VOUCHER_MAP.values())
+        const v = vArr[Math.floor(Math.random() * vArr.length)]
+        consumables.value.push({ def: { ...v }, type: 'voucher', sold: false })
       }
     }
     bus.emit(EVENTS.SHOP_OPENED)

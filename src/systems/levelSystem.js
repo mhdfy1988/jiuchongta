@@ -1,5 +1,6 @@
 import { bus, EVENTS } from '../utils/eventBus.js'
 import { getTargetScore, isBossLevel } from '../data/constants.js'
+import { getJoker } from '../utils/gameData.js'
 import { useAudio } from '../composables/useAudio.js'
 
 const { SFX } = useAudio()
@@ -77,6 +78,19 @@ export function createLevelSystem(game, bus) {
     bus.emit(EVENTS.LEVEL_WON, { reward, boss, exceed })
   }
 
+  // 层开始时的出牌/弃牌次数：基础 4 次，持有加成小丑（如补票）时叠加
+  // 注意：startRun 不用此函数——新局开始时 jokers 尚未重置，固定 4/4
+  function resetPlays() {
+    let hands = 4, discards = 4
+    for (const joker of game.jokers || []) {
+      const def = getJoker(joker.id)
+      hands += def?.handsBonus || 0
+      discards += def?.discardsBonus || 0
+    }
+    game.handsLeft = hands
+    game.discardsLeft = discards
+  }
+
   // ---------- 下一层 ----------
 
   function nextLevel() {
@@ -87,8 +101,7 @@ export function createLevelSystem(game, bus) {
 
     game.level++
     game.levelScore = 0
-    game.handsLeft = 4
-    game.discardsLeft = 4
+    resetPlays()
     game.handSize = 8
     game.levelStartMoney = game.money
     game.targetScore = getTargetScore(game.level, game.mode)
@@ -111,8 +124,7 @@ export function createLevelSystem(game, bus) {
       game.lives--
       game.levelScore = 0
       game.handSize = 8
-      game.handsLeft = 4
-      game.discardsLeft = 4
+      resetPlays()
       bus.emit(EVENTS.REVIVED, { lives: game.lives })
       return true // 复活了
     }

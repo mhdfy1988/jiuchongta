@@ -35,7 +35,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { JOKERS } from '../data/jokers.js'
-import { TAROT_MAP, PLANET_MAP, BOSS_MAP } from '../utils/gameData.js'
+import { TAROT_MAP, PLANET_MAP, VOUCHER_MAP, BOSS_MAP } from '../utils/gameData.js'
 import { getTargetScore } from '../data/constants.js'
 
 const props = defineProps({ state: { type: Object, required: true } })
@@ -127,13 +127,15 @@ const COMMANDS = {
     if (!kw) return print('用法: cons 死神', 'err')
     const all = [...TAROT_MAP.values()].map(d => ({ ...d, _type: 'tarot' }))
       .concat([...PLANET_MAP.values()].map(d => ({ ...d, _type: 'planet' })))
+      .concat([...VOUCHER_MAP.values()].map(d => ({ ...d, _type: 'voucher' })))
     const hits = fuzzy(all, kw)
     if (hits.length === 0) return print('没有找到匹配的消耗牌', 'err')
     if (hits.length > 1) return print('多个匹配: ' + hits.map(h => `${h.name}(${h.id})`).join('、'), 'err')
     const def = hits[0]
     if (game.consumables.length >= 2) return print('消耗牌槽已满 (2)', 'err')
     game.consumables.push({ id: def.id, type: def._type })
-    print(`已添加 ${def.icon || ''} ${def.name} (${def._type === 'tarot' ? '塔罗' : '星球'})`, 'ok')
+    const typeLabel = def._type === 'tarot' ? '塔罗' : def._type === 'planet' ? '星球' : '礼券'
+    print(`已添加 ${def.icon || ''} ${def.name} (${typeLabel})`, 'ok')
   },
 
   card(...args) {
@@ -207,7 +209,7 @@ const COMMANDS = {
 
   list(what) {
     if (what === 'joker') print(JOKERS.map(j => `${j.name}(${j.id})`).join('、'), 'cmd')
-    else if (what === 'cons') print([...TAROT_MAP.keys(), ...PLANET_MAP.keys()].join('、'), 'cmd')
+    else if (what === 'cons') print([...TAROT_MAP.keys(), ...PLANET_MAP.keys(), ...VOUCHER_MAP.keys()].join('、'), 'cmd')
     else if (what === 'boss') print([...BOSS_MAP.values()].map(b => `${b.name}(${b.id})`).join('、'), 'cmd')
     else print('用法: list joker|cons|boss', 'err')
   },

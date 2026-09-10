@@ -12,6 +12,14 @@
           @click="state.pickSuit(suit)"
         >{{ suit }}</button>
       </div>
+      <div v-if="showOptionPicker" class="option-picker">
+        <button
+          v-for="opt in def.options" :key="opt.label"
+          class="option-btn"
+          :class="{ selected: game.pendingOption === opt.value }"
+          @click="state.pickOption(opt.value)"
+        >{{ opt.label }}</button>
+      </div>
       <div class="overlay-actions">
         <button class="confirm-btn" @click="state.confirmConsumable()">确认</button>
         <button class="cancel-btn" @click="state.cancelConsumable()">取消</button>
@@ -40,12 +48,24 @@ const showSuitPicker = computed(() => {
   return def.value?.id === 'the_world' && game.selected.length >= def.value.selectCount
 })
 
+const showOptionPicker = computed(() => {
+  return !!def.value?.options && game.selected.length >= (def.value.selectCount || 1)
+})
+
 const hint = computed(() => {
   if (!def.value) return ''
   if (game.pendingSuit) return `已选花色 ${game.pendingSuit},点击确认使用`
+  if (game.pendingOption !== null && game.pendingOption !== undefined) return `已选: ${pendingOptionLabel.value},点击确认使用`
   const remaining = def.value.selectCount - game.selected.length
   if (remaining > 0) return `还需选择 ${remaining} 张手牌 (已选 ${game.selected.length}/${def.value.selectCount})`
+  if (def.value.options) return `已选 ${game.selected.length} 张,请选择选项`
   return `已选 ${game.selected.length} 张,点击确认使用`
+})
+
+const pendingOptionLabel = computed(() => {
+  if (game.pendingOption === null || game.pendingOption === undefined || !def.value?.options) return ''
+  const opt = def.value.options.find(o => o.value === game.pendingOption)
+  return opt ? opt.label : String(game.pendingOption)
 })
 
 function suitClass(suit) {
@@ -81,6 +101,18 @@ function suitClass(suit) {
 .suit-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px) scale(1.1); }
 .suit-btn.selected {
   border-color: var(--gold); background: rgba(255,204,34,0.15);
+  box-shadow: 0 0 16px rgba(255,204,34,0.5);
+  animation: suit-pulse 0.6s infinite alternate;
+}
+.option-picker { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+.option-btn {
+  padding: 6px 16px; font-size: 14px; font-weight: 700;
+  background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 8px; cursor: pointer; transition: all 0.25s; color: #e8e8e8;
+}
+.option-btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+.option-btn.selected {
+  border-color: var(--gold); background: rgba(255,204,34,0.15); color: var(--gold);
   box-shadow: 0 0 16px rgba(255,204,34,0.5);
   animation: suit-pulse 0.6s infinite alternate;
 }

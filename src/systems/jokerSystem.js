@@ -57,14 +57,6 @@ export function createJokerSystem(game, bus) {
     }
   }
 
-  // 清理消耗型小丑（打完就消失的）
-  function consumeTempJokers() {
-    for (let i = game.jokers.length - 1; i >= 0; i--) {
-      const def = getJoker(game.jokers[i].id)
-      if (def?.consumeOnUse) game.jokers.splice(i, 1)
-    }
-  }
-
   return {
     addJoker,
     removeJoker,
@@ -72,6 +64,5 @@ export function createJokerSystem(game, bus) {
     getDef,
     triggerOnPlay,
     triggerOnDiscard,
-    consumeTempJokers,
   }
 }
