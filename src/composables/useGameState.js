@@ -394,7 +394,7 @@ export function useGameState() {
 
     if (game.mode === 'endless') {
       stats.value.maxEndless = Math.max(stats.value.maxEndless || 0, game.level)
-      saveSys.saveStats()
+      achievements.checkAll()
     }
     saveSys.saveGame()
     const blindName = boss.isBoss() ? 'Boss层' : '普通层'
@@ -434,7 +434,7 @@ export function useGameState() {
         stats.value.legendBuy = true
         achievements.checkAll()
       }
-      saveSys.saveStats()
+      saveSys.saveStats(stats.value)
     }
   }
   function sellJoker(idx) {
