@@ -424,7 +424,18 @@ export function useGameState() {
 
   // ========== 消耗品 API（兼容旧调用） ==========
 
-  function useConsumable(idx) { consumables.startUse(idx) }
+  function useConsumable(idx) {
+    const result = consumables.startUse(idx)
+    if (result?.applied) {
+      if (result.upgradedHandType) {
+        showToast(`${result.name}：${result.upgradedHandType} 倍率+2`)
+      } else {
+        showToast(`使用了 ${result.name}`)
+      }
+      if (!stats.value.firstConsumable) { stats.value.firstConsumable = true; achievements.checkAll() }
+      saveSys.saveGame()
+    }
+  }
   function sellConsumable(idx) { consumables.sellConsumable(idx); saveSys.saveGame() }
   function pickSuit(suit) { consumables.pickSuit(suit) }
   function pickOption(value) { consumables.pickOption(value) }

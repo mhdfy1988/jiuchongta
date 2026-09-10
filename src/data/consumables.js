@@ -23,7 +23,7 @@ export const TAROTS = [
     use: () => 'choose_option',
     applyOption: (card, v) => { card.rank = v } },
   { id:'wheel_of_fortune', name:'命运之轮', icon:'🎡', cost:4, desc:'随机升级1种牌型', selectCount:0,
-    use: (game) => { const types = Object.keys(HAND_TYPES); const t = types[Math.floor(Math.random()*types.length)]; if (!game.handUpgrades[t]) game.handUpgrades[t] = { chips:0, mult:0 }; game.handUpgrades[t].mult += 2; return true; } },
+    use: (game) => { const types = Object.keys(HAND_TYPES); const t = types[Math.floor(Math.random()*types.length)]; if (!game.handUpgrades[t]) game.handUpgrades[t] = { chips:0, mult:0 }; game.handUpgrades[t].mult += 2; return { upgradedHandType: t }; } },
   { id:'the_star', name:'星星', icon:'⭐', cost:3, desc:'选1张手牌 变成A(保留花色)', selectCount:1,
     use: (game, selected) => { if (selected.length < 1) return false; selected[0].rank = 'A'; return true; } },
   { id:'the_moon', name:'月亮', icon:'🌙', cost:3, desc:'选1张手牌 变成随机人头牌(J/Q/K)', selectCount:1,

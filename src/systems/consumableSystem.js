@@ -58,7 +58,7 @@ export function createConsumableSystem(game, bus, cardSystem) {
         game.consumables.splice(idx, 1)
         SFX.useConsumable()
         bus.emit(EVENTS.CONSUMABLE_USED, { type: cons.type, id: cons.id })
-        return 'applied'
+        return { applied: true, name: def.name, upgradedHandType: result?.upgradedHandType || null }
       }
       return false
     }
