@@ -84,7 +84,6 @@ export function useGameState() {
   }
 
   onBus(EVENTS.LEVEL_WON, () => {
-    showModal.value = 'levelcomplete'
     SFX.levelComplete()
     // 成就追踪：完美一层（本层从未弃牌）
     if (!game.discardedThisLevel) {
@@ -98,6 +97,12 @@ export function useGameState() {
     }
     // 小丑上限追踪
     achievements.recordMax('maxJokers', game.jokers.length)
+    // 第9层（最终层）通关后不再进商店，直接结算
+    if (game.mode !== 'endless' && game.level >= 9) {
+      level.nextLevel() // 触发 GAME_CLEAR
+      return
+    }
+    showModal.value = 'levelcomplete'
     saveSys.saveGameNow()
   })
 
