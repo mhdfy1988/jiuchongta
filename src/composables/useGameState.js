@@ -115,11 +115,11 @@ export function useGameState() {
     s.totalGames = (s.totalGames || 0) + 1
     if (game.mode === 'hard') {
       s.hardClears = (s.hardClears || 0) + 1
-      // 无丑通关追踪
-      if (game.jokers.length === 0) {
-        s.noJokerClear = true
-        achievements.checkAll()
-      }
+    }
+    // 无丑通关追踪（简单模式即可，困难也算）
+    if (game.jokers.length === 0) {
+      s.noJokerClear = true
+      achievements.checkAll()
     }
     if (!s.unlockedChars?.includes('straight')) {
       s.unlockedChars = [...(s.unlockedChars || []), 'straight']
